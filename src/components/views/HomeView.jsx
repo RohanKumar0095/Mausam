@@ -1,28 +1,31 @@
 import React, { useState } from 'react';
-import { 
-  Compass, 
-  Droplets, 
-  ChevronRight, 
-  Sun, 
-  Moon, 
-  Map, 
-  Sprout, 
-  Users, 
-  Wind, 
-  CloudRain,
-  Sparkles,
-  Info
-} from 'lucide-react';
+import PersonaChipRow from '../common/PersonaChipRow';
+import ActivityTimeline from '../routine/ActivityTimeline';
 import WidgetCard from '../common/WidgetCard';
 import SevereAlertBanner from '../common/SevereAlertBanner';
 import NudgeBanner from '../common/NudgeBanner';
-import ActivityTimeline from '../routine/ActivityTimeline';
-import PersonaChipRow from '../common/PersonaChipRow';
+import { useI18n } from '../../i18n/i18nContext';
+import { 
+  CloudSun, 
+  Wind, 
+  Droplets, 
+  Eye, 
+  Thermometer, 
+  Compass, 
+  Clock, 
+  CalendarDays,
+  Radio,
+  ShieldAlert,
+  AlertTriangle,
+  ChevronDown,
+  ChevronUp,
+  Sparkles
+} from 'lucide-react';
 
 export default function HomeView({
   weatherData,
   rankedWidgets = [],
-  selectedPersonas = [],
+  selectedPersonas = ['daily_life'],
   onTogglePersona,
   routine = [],
   currentTime = '06:30',
@@ -36,305 +39,190 @@ export default function HomeView({
   selectedPlot = 'Plot A (Rice)',
   onSelectPlot
 }) {
-  const current = weatherData?.current || {};
-  const forecast3h = weatherData?.forecast3Hourly || [];
-  const daily = weatherData?.dailyForecast || [];
-  const astronomy = weatherData?.astronomy || {};
-
-  const topPersonalizedWidgets = rankedWidgets.slice(0, 6);
-  const secondaryWidgets = rankedWidgets.slice(6);
+  const { language, t } = useI18n();
+  const isHindi = language === 'hi';
   const [showAllWidgets, setShowAllWidgets] = useState(false);
 
+  const current = weatherData?.current || {};
+  const isAgriculture = selectedPersonas.includes('agriculture');
+  const visibleWidgets = showAllWidgets ? rankedWidgets : rankedWidgets.slice(0, 6);
+
   return (
-    <div className="space-y-3 pb-20">
+    <div className="space-y-3 pb-24 text-white">
+      {/* 1. SEVERE ALERT BANNER (If Red/Amber active) */}
+      <SevereAlertBanner 
+        safetyInfo={safetyInfo} 
+        onViewDetails={onOpenAlerts} 
+      />
+
+      {/* 2. CONTEXTUAL NUDGE BANNER */}
+      {nudge && (
+        <NudgeBanner 
+          nudge={nudge} 
+          onAction={() => onNudgeAction(nudge.actionTab)} 
+        />
+      )}
+
+      {/* 3. ACTIVE PROFILES HORIZONTAL ROW */}
       <PersonaChipRow
         selectedPersonas={selectedPersonas}
         onTogglePersona={onTogglePersona}
       />
 
+      {/* 4. DAILY WEATHER ROUTINE HORIZONTAL TIMELINE */}
       <ActivityTimeline
         routine={routine}
         currentTime={currentTime}
         onEditRoutine={onEditRoutine}
       />
 
-      <SevereAlertBanner
-        safetyInfo={safetyInfo}
-        onOpenAlerts={onOpenAlerts}
-      />
+      {/* 5. ORIGINAL IMD HERO WEATHER CARD */}
+      <div className="mx-4 p-4 rounded-mausam bg-white/15 backdrop-blur-md border border-white/20 shadow-md">
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] font-mono uppercase tracking-wider text-sky-200">
+                {weatherData?.district || 'Gaya'}, {weatherData?.state || 'Bihar'}
+              </span>
+            </div>
+            <div className="flex items-baseline gap-2 mt-1">
+              <span className="text-4xl font-light text-white tracking-tight">
+                {current.temp || 25.2}°C
+              </span>
+              <span className="text-xs text-sky-200 font-normal">
+                {t('hero_humidity')} {current.humidity || 84}%
+              </span>
+            </div>
+            <p className="text-xs text-sky-100 mt-1 font-normal">
+              {current.condition || 'Partly Cloudy'}
+            </p>
+          </div>
 
-      {nudge && (
-        <NudgeBanner
-          nudge={nudge}
-          onAction={onNudgeAction}
-        />
+          <div className="text-right">
+            <span className="text-[10px] text-sky-200/80 block font-mono">
+              {t('hero_updated_at')} {current.updatedAt || '11:30 AM'}
+            </span>
+            <div className="mt-2 flex flex-col items-end gap-1">
+              <span className="px-2 py-0.5 rounded bg-emerald-500/30 text-emerald-200 text-[10.5px] font-medium border border-emerald-400/30">
+                AQI {current.aqi || 83} • {t('hero_aqi_satisfactory')}
+              </span>
+              <span className="text-[10.5px] text-sky-200 font-mono">
+                {t('hero_24h_rain')} {current.rainfall24h || 3.5} mm
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Micro Weather Barometer Row */}
+        <div className="mt-3 pt-3 border-t border-white/15 grid grid-cols-4 gap-1 text-center text-[10.5px]">
+          <div>
+            <span className="text-sky-200 block text-[9.5px]">{t('hero_min_max')}</span>
+            <span className="font-semibold text-white">{current.minTemp || 21}°/{current.maxTemp || 27}°</span>
+          </div>
+          <div>
+            <span className="text-sky-200 block text-[9.5px]">{isHindi ? 'हवा' : 'Wind'}</span>
+            <span className="font-semibold text-white">{current.windSpeed || 7} km/h</span>
+          </div>
+          <div>
+            <span className="text-sky-200 block text-[9.5px]">{isHindi ? 'दिशा' : 'Direction'}</span>
+            <span className="font-semibold text-white">{current.windDirection || 'NNE'}</span>
+          </div>
+          <div>
+            <span className="text-sky-200 block text-[9.5px]">UV</span>
+            <span className="font-semibold text-white">{current.uvIndex || 4}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* 6. AGRICULTURE FARM PLOT SELECTOR (Only shown if Agriculture is selected) */}
+      {isAgriculture && (
+        <div className="mx-4 p-2.5 rounded-mausam bg-emerald-950/40 border border-emerald-500/30 flex items-center justify-between gap-2 text-xs">
+          <div className="flex items-center gap-1.5 text-emerald-200">
+            <span className="font-medium text-emerald-300">{t('home_field_plot')}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            {['Plot A (Rice)', 'Plot B (Maize)', 'Plot C (Vegetables)'].map(plot => {
+              const isSelected = selectedPlot === plot;
+              return (
+                <button
+                  key={plot}
+                  onClick={() => onSelectPlot && onSelectPlot(plot)}
+                  className={`px-2 py-1 rounded text-[10.5px] font-medium transition-all ${
+                    isSelected
+                      ? 'bg-emerald-500 text-slate-950 font-bold shadow-xs'
+                      : 'bg-white/10 text-emerald-100 hover:bg-white/20'
+                  }`}
+                >
+                  {plot}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       )}
 
-      {/* Primary Personalized Widgets Grid */}
-      <div className="px-4">
+      {/* 7. DYNAMIC PERSONALIZED RANKED WIDGETS SECTION */}
+      <div className="px-4 pt-1">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-1.5">
-            <Sparkles className="w-4 h-4 text-amber-300" />
-            <h3 className="text-xs font-medium text-white tracking-wide uppercase">
-              Personalized Priorities ({rankedWidgets.length} Available)
-            </h3>
+            <Sparkles className="w-3.5 h-3.5 text-sky-300" />
+            <h4 className="text-xs font-semibold text-white uppercase tracking-wider">
+              {t('home_personalized_priorities')}
+            </h4>
           </div>
           <span className="text-[10px] text-sky-200/80 font-mono">
-            Synced for {currentTime}
+            {t('home_synced_for')} {currentTime}
           </span>
         </div>
 
-        {/* Farm Plot Selector when Agriculture is active */}
-        {selectedPersonas.includes('agriculture') && (
-          <div className="flex items-center gap-1.5 mb-2.5 overflow-x-auto no-scrollbar py-0.5">
-            <span className="text-[11px] text-sky-200 font-medium mr-1 flex items-center gap-1 flex-shrink-0">
-              🌾 Field Plot:
-            </span>
-            {['Plot A (Rice)', 'Plot B (Maize)', 'Plot C (Vegetables)'].map(plot => (
-              <button
-                key={plot}
-                onClick={() => onSelectPlot && onSelectPlot(plot)}
-                className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all flex-shrink-0 ${
-                  (selectedPlot || 'Plot A (Rice)') === plot
-                    ? 'bg-emerald-500 text-slate-950 font-bold shadow-xs'
-                    : 'bg-white/10 text-white/90 hover:bg-white/20'
-                }`}
-              >
-                {plot}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* 2-column grid */}
-        <div className="grid grid-cols-2 gap-2.5">
-          {topPersonalizedWidgets.map(widget => (
+        {/* 2-Column Responsive Card Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          {visibleWidgets.map(widget => (
             <WidgetCard
               key={widget.id}
               widget={widget}
-              onExplain={onExplainWidget}
+              onExplain={() => onExplainWidget(widget)}
             />
           ))}
         </div>
 
-        {secondaryWidgets.length > 0 && (
-          <div className="mt-2 text-center">
+        {/* Expand / Collapse Button */}
+        {rankedWidgets.length > 6 && (
+          <div className="mt-3 text-center">
             <button
               onClick={() => setShowAllWidgets(!showAllWidgets)}
-              className="text-[11px] text-sky-200 hover:text-white font-medium py-1 px-3 rounded-full bg-white/10 hover:bg-white/15 transition-all"
+              className="px-4 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-sky-200 text-xs font-medium transition-colors border border-white/15 inline-flex items-center gap-1 shadow-xs"
             >
-              {showAllWidgets ? 'Show Less Widgets' : `+ Show ${secondaryWidgets.length} More Context Widgets`}
+              <span>{showAllWidgets ? t('home_show_less') : t('home_show_more')}</span>
+              {showAllWidgets ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
             </button>
           </div>
         )}
-
-        {showAllWidgets && (
-          <div className="grid grid-cols-2 gap-2.5 mt-2.5 animate-fadeIn">
-            {secondaryWidgets.map(widget => (
-              <WidgetCard
-                key={widget.id}
-                widget={widget}
-                onExplain={onExplainWidget}
-              />
-            ))}
-          </div>
-        )}
       </div>
 
-      {/* Original IMD Current Weather Hero Card */}
-      <div className="px-4 pt-1">
-        <div className="glass-card rounded-mausam p-4 text-white shadow-md relative overflow-hidden">
-          <div className="flex items-start justify-between">
-            <div>
-              <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-normal tracking-tight">
-                  {current.temp || '25.2'}°C
-                </span>
-              </div>
-              
-              <p className="text-[11px] text-sky-200 mt-1 font-normal">
-                Updated At {current.updatedAt || '11:30 AM'}
-              </p>
-
-              <div className="mt-3 space-y-1 text-xs text-sky-100 font-normal">
-                <p>Humidity: <strong className="font-medium text-white">{current.humidity || 84}%</strong></p>
-                <p>24h Rain: <strong className="font-medium text-white">{current.rainfall24h || 0} mm</strong></p>
-                <p>Min / Max: <strong className="font-medium text-white">{current.minTemp || 21.0} / {current.maxTemp || 26.5} °C</strong></p>
-              </div>
-            </div>
-
-            <div className="flex flex-col items-center">
-              <div className="relative w-24 h-24 flex items-center justify-center">
-                <div className="absolute inset-0 rounded-full border-2 border-dashed border-white/20" />
-                <span className="absolute top-0 text-[10px] text-sky-200 font-bold">N</span>
-                <span className="absolute bottom-0 text-[10px] text-sky-200 font-bold">S</span>
-                <span className="absolute left-1 text-[10px] text-sky-200 font-bold">W</span>
-                <span className="absolute right-1 text-[10px] text-sky-200 font-bold">E</span>
-                
-                <div 
-                  className="w-1.5 h-16 bg-gradient-to-t from-amber-400 via-white to-sky-300 rounded-full transform origin-center transition-transform duration-700 shadow-sm"
-                  style={{ transform: `rotate(${current.windDegree || 205}deg)` }}
-                />
-                
-                <div className="w-3 h-3 rounded-full bg-slate-900 border-2 border-white z-10" />
-              </div>
-
-              <div className="text-center mt-1">
-                <span className="text-xs font-medium text-white block">
-                  {current.windSpeed || 8} km/h
-                </span>
-                <span className="text-[10px] text-sky-200 uppercase font-mono">
-                  {current.windDirection || 'SSW'}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
-              <span className="text-xs font-normal text-sky-100">
-                Air Quality Index (AQI)
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5 bg-emerald-500/20 border border-emerald-400/30 px-2.5 py-0.5 rounded-full">
-              <span className="text-xs font-medium text-emerald-300">
-                {current.aqi || 83}
-              </span>
-              <span className="text-[10px] text-emerald-200 font-normal">
-                Satisfactory
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 3 Hourly Forecast */}
-      <div className="px-4">
-        <div className="flex items-center justify-between text-xs text-sky-200 mb-2 font-normal">
-          <span className="font-medium text-white">3 Hourly Forecast</span>
-          <span className="text-[11px] opacity-80">Next 24 Hours</span>
+      {/* 8. 3-HOURLY FORECAST STRIP */}
+      <div className="px-4 pt-2">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-semibold uppercase tracking-wider text-sky-100">
+            {t('hero_hourly_forecast')}
+          </span>
+          <span className="text-[10px] text-sky-200/80 font-mono">
+            {t('hero_next_24_hours')}
+          </span>
         </div>
 
-        <div className="glass-card rounded-mausam p-3 flex gap-4 overflow-x-auto scroll-touch-x no-scrollbar scrollbar-hide">
-          {forecast3h.map((item, idx) => (
-            <div key={idx} className="flex-shrink-0 flex flex-col items-center min-w-[56px] text-white">
-              <span className="text-[11px] font-mono text-sky-200 opacity-90">{item.time}</span>
-              <span className="text-base font-normal my-1">{item.temp}°</span>
-              
-              <div className="flex items-center gap-1 text-[10px] text-sky-300 mt-0.5">
-                <Droplets className="w-2.5 h-2.5" />
-                <span>{item.rainMm} mm</span>
-              </div>
-              <span className="text-[10px] text-sky-200/70 font-mono mt-0.5">
-                {item.windKmh} km/h
-              </span>
+        <div className="flex items-stretch gap-2 overflow-x-auto no-scrollbar scrollbar-hide py-1">
+          {(weatherData?.forecast3Hourly || []).slice(0, 7).map((h, i) => (
+            <div
+              key={i}
+              className="flex-shrink-0 w-20 rounded-mausam bg-white/10 backdrop-blur-md p-2 text-center border border-white/15"
+            >
+              <span className="text-[10px] text-sky-200 block font-mono">{h.time}</span>
+              <span className="text-sm block my-1">🌤️</span>
+              <span className="text-xs font-bold block">{h.temp}°C</span>
+              <span className="text-[9px] text-sky-300 block">{h.pop}% 💧</span>
             </div>
           ))}
-        </div>
-      </div>
-
-      {/* 7-Day Outlook Forecast */}
-      <div className="px-4">
-        <div className="flex items-center justify-between text-xs text-sky-200 mb-2 font-normal">
-          <span className="font-medium text-white">7-Day Outlook</span>
-          <span className="text-[11px] opacity-80">Trend & Min/Max</span>
-        </div>
-
-        <div className="glass-card rounded-mausam p-3 space-y-2.5 text-white">
-          {daily.map((day, idx) => (
-            <div key={idx} className="flex items-center justify-between text-xs">
-              <span className="w-14 font-medium text-sky-100">{day.day}</span>
-              
-              <div className="flex items-center gap-1.5 text-[11px] text-sky-200 flex-1 px-2">
-                <CloudRain className="w-3.5 h-3.5 text-sky-300 flex-shrink-0" />
-                <span className="truncate">{day.condition}</span>
-              </div>
-
-              <div className="flex items-center gap-2 font-mono text-xs">
-                <span className="text-sky-300 text-[11px]">{day.minTemp}°</span>
-                <div className="w-16 h-1.5 bg-white/15 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-gradient-to-r from-sky-400 to-amber-400 rounded-full"
-                    style={{ width: `${Math.min(100, Math.max(20, (day.maxTemp - 15) * 5))}%` }}
-                  />
-                </div>
-                <span className="text-amber-300 font-medium">{day.maxTemp}°</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Sun & Moon Timings */}
-      <div className="px-4">
-        <div className="grid grid-cols-2 gap-2.5">
-          <div className="glass-card rounded-mausam p-3 text-white">
-            <div className="flex items-center gap-1.5 mb-2 text-xs text-amber-300 font-medium">
-              <Sun className="w-4 h-4" />
-              <span>Sun Timings</span>
-            </div>
-            <div className="flex justify-between text-xs">
-              <div>
-                <span className="text-[10px] text-sky-200 block">Sunrise</span>
-                <span className="font-mono text-white font-medium">{astronomy.sunrise || '05:42 AM'}</span>
-              </div>
-              <div className="text-right">
-                <span className="text-[10px] text-sky-200 block">Sunset</span>
-                <span className="font-mono text-white font-medium">{astronomy.sunset || '06:18 PM'}</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="glass-card rounded-mausam p-3 text-white">
-            <div className="flex items-center gap-1.5 mb-2 text-xs text-sky-300 font-medium">
-              <Moon className="w-4 h-4" />
-              <span>Moon Timings</span>
-            </div>
-            <div className="flex justify-between text-xs">
-              <div>
-                <span className="text-[10px] text-sky-200 block">Moonrise</span>
-                <span className="font-mono text-white font-medium">{astronomy.moonrise || '07:12 PM'}</span>
-              </div>
-              <div className="text-right">
-                <span className="text-[10px] text-sky-200 block">Moonset</span>
-                <span className="font-mono text-white font-medium">{astronomy.moonset || '06:05 AM'}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Radar & Alerts Quick Navigation */}
-      <div className="px-4 pt-1">
-        <div className="grid grid-cols-2 gap-2.5">
-          <button
-            onClick={onOpenRadar}
-            className="p-3 bg-white/10 hover:bg-white/15 active:bg-white/20 rounded-mausam border border-white/15 text-white flex items-center justify-between text-xs transition-all shadow-xs"
-          >
-            <div className="flex items-center gap-2">
-              <Map className="w-4 h-4 text-sky-300" />
-              <div className="text-left">
-                <span className="font-medium block">Doppler Radar</span>
-                <span className="text-[10px] text-sky-200/80">Live reflectivity scan</span>
-              </div>
-            </div>
-            <ChevronRight className="w-4 h-4 text-sky-300/80" />
-          </button>
-
-          <button
-            onClick={onOpenAlerts}
-            className="p-3 bg-white/10 hover:bg-white/15 active:bg-white/20 rounded-mausam border border-white/15 text-white flex items-center justify-between text-xs transition-all shadow-xs"
-          >
-            <div className="flex items-center gap-2">
-              <CloudRain className="w-4 h-4 text-amber-300" />
-              <div className="text-left">
-                <span className="font-medium block">Alerts & Warnings</span>
-                <span className="text-[10px] text-sky-200/80">IMD advisory bulletin</span>
-              </div>
-            </div>
-            <ChevronRight className="w-4 h-4 text-sky-300/80" />
-          </button>
         </div>
       </div>
     </div>

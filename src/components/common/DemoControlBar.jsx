@@ -1,14 +1,7 @@
 import React from 'react';
-import { 
-  Clock, 
-  UserCheck, 
-  AlertTriangle, 
-  Smartphone, 
-  RotateCcw,
-  Sparkles,
-  Layers
-} from 'lucide-react';
+import { Clock, ShieldAlert, Smartphone, Monitor, RotateCcw, Globe } from 'lucide-react';
 import { PRESET_PROFILES } from '../../data/presetProfiles';
+import { useI18n } from '../../i18n/i18nContext';
 
 export default function DemoControlBar({
   currentTime,
@@ -21,107 +14,108 @@ export default function DemoControlBar({
   onToggleFrame,
   onResetOnboarding
 }) {
-  const times = [
-    { label: '06:30 Morning', value: '06:30' },
-    { label: '09:00 Midday', value: '09:00' },
-    { label: '16:30 Evening', value: '16:30' },
-    { label: '19:00 Night', value: '19:00' },
-    { label: '22:00 Late', value: '22:00' },
+  const { language, setLanguage, t } = useI18n();
+  const isHindi = language === 'hi';
+
+  const TIME_OPTIONS = [
+    { label: '06:30', val: '06:30' },
+    { label: '09:00', val: '09:00' },
+    { label: '16:30', val: '16:30' },
+    { label: '19:00', val: '19:00' },
+    { label: '22:00', val: '22:00' }
   ];
 
   return (
-    <header className="bg-slate-900 border-b border-slate-800 text-slate-200 px-3 py-2 text-xs select-none shadow-md z-40">
-      <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
-        {/* Hackathon Badge */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-brand text-white font-medium text-[11px] shadow-xs">
-            <Sparkles className="w-3.5 h-3.5 text-sky-200" />
-            <span>SIH26076 MAUSAM DEMO BAR</span>
-          </div>
+    <div className="w-full bg-slate-900 text-white px-3 py-2 border-b border-slate-800 text-xs flex flex-wrap items-center justify-between gap-2 shadow-md">
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="bg-sky-500 text-slate-950 font-bold px-2 py-0.5 rounded text-[10px] tracking-wider uppercase">
+          {t('demo_badge')}
+        </span>
+
+        {/* Language Quick Switcher */}
+        <div className="flex items-center gap-1 bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700">
+          <Globe className="w-3 h-3 text-sky-400" />
+          <button
+            onClick={() => setLanguage('en')}
+            className={`px-1.5 py-0.2 rounded text-[10px] ${!isHindi ? 'bg-brand text-white font-bold' : 'text-slate-400'}`}
+          >
+            EN
+          </button>
+          <button
+            onClick={() => setLanguage('hi')}
+            className={`px-1.5 py-0.2 rounded text-[10px] ${isHindi ? 'bg-brand text-white font-bold' : 'text-slate-400'}`}
+          >
+            हिन्दी
+          </button>
         </div>
 
-        {/* Preset Combinations */}
-        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5 max-w-xl">
-          <div className="flex items-center gap-1 text-[11px] text-slate-400 mr-1 flex-shrink-0">
-            <Layers className="w-3.5 h-3.5 text-sky-400" />
-            <span>Preset:</span>
-          </div>
-          {Object.values(PRESET_PROFILES).map((prof) => (
+        {/* Preset Select Dropdown */}
+        <div className="flex items-center gap-1">
+          <span className="text-slate-400 text-[11px]">{t('demo_preset')}</span>
+          <select
+            value={activeProfileId}
+            onChange={(e) => onSelectProfile(e.target.value)}
+            className="bg-slate-800 border border-slate-700 text-sky-300 text-xs rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-sky-400"
+          >
+            {Object.keys(PRESET_PROFILES).map(k => (
+              <option key={k} value={k}>{PRESET_PROFILES[k].name}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Time Fast-Travel Buttons */}
+        <div className="flex items-center gap-1 bg-slate-800/80 p-0.5 rounded border border-slate-700">
+          <Clock className="w-3 h-3 text-sky-400 ml-1" />
+          {TIME_OPTIONS.map(to => (
             <button
-              key={prof.id}
-              onClick={() => onSelectProfile(prof.id)}
-              className={`px-2 py-1 rounded text-[11px] font-medium transition-all flex-shrink-0 ${
-                activeProfileId === prof.id
-                  ? 'bg-sky-500 text-slate-950 font-bold shadow-xs'
-                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+              key={to.val}
+              onClick={() => onTimeChange(to.val)}
+              className={`px-1.5 py-0.5 rounded text-[11px] font-mono transition-colors ${
+                currentTime === to.val
+                  ? 'bg-sky-500 text-slate-950 font-bold'
+                  : 'text-slate-300 hover:text-white'
               }`}
             >
-              {prof.shortLabel || prof.name}
+              {to.label}
             </button>
           ))}
         </div>
-
-        {/* Time Simulator */}
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          <div className="flex items-center gap-1 text-[11px] text-slate-400 mr-1">
-            <Clock className="w-3.5 h-3.5 text-amber-400" />
-            <span>Time:</span>
-          </div>
-          <div className="flex items-center gap-1 bg-slate-800/80 p-0.5 rounded-md border border-slate-700">
-            {times.map((t) => (
-              <button
-                key={t.value}
-                onClick={() => onTimeChange(t.value)}
-                className={`px-1.5 py-0.5 rounded text-[10.5px] font-mono transition-all ${
-                  currentTime === t.value
-                    ? 'bg-amber-500 text-slate-950 font-bold'
-                    : 'text-slate-300 hover:text-white hover:bg-slate-700'
-                }`}
-              >
-                {t.value}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Action Toggles */}
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          {/* Red Alert Simulator */}
-          <button
-            onClick={onToggleSevereAlert}
-            className={`px-2.5 py-1 rounded text-[11px] font-medium flex items-center gap-1 transition-all ${
-              simulatedSeverity === 'RED'
-                ? 'bg-rose-600 text-white animate-pulse shadow-xs ring-2 ring-rose-400'
-                : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-            }`}
-          >
-            <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
-            <span>{simulatedSeverity === 'RED' ? 'Red Alert Active' : 'Simulate Red Alert'}</span>
-          </button>
-
-          {/* Frame Toggle */}
-          <button
-            onClick={onToggleFrame}
-            className={`p-1.5 rounded transition-all ${
-              isMobileFramed
-                ? 'bg-slate-700 text-white'
-                : 'bg-slate-800 text-slate-400 hover:text-white'
-            }`}
-            title="Toggle Mobile / Wide Viewport"
-          >
-            <Smartphone className="w-3.5 h-3.5" />
-          </button>
-
-          {/* Reset Flow */}
-          <button
-            onClick={onResetOnboarding}
-            className="p-1.5 rounded bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition-all"
-            title="Re-run Onboarding Questions"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-          </button>
-        </div>
       </div>
-    </header>
+
+      <div className="flex items-center gap-2 flex-wrap">
+        {/* Simulate Red Alert Button */}
+        <button
+          onClick={onToggleSevereAlert}
+          className={`flex items-center gap-1 px-2.5 py-1 rounded font-medium text-xs transition-all ${
+            simulatedSeverity === 'RED'
+              ? 'bg-rose-600 text-white animate-pulse shadow-sm'
+              : 'bg-rose-950/80 border border-rose-800 text-rose-300 hover:bg-rose-900'
+          }`}
+        >
+          <ShieldAlert className="w-3.5 h-3.5" />
+          <span>{simulatedSeverity === 'RED' ? t('demo_red_alert_active') : t('demo_simulate_red_alert')}</span>
+        </button>
+
+        {/* Toggle Mobile Frame */}
+        <button
+          onClick={onToggleFrame}
+          className="hidden sm:flex items-center gap-1 bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded border border-slate-700 text-xs transition-colors"
+          title="Toggle Mobile Viewport"
+        >
+          {isMobileFramed ? <Monitor className="w-3.5 h-3.5" /> : <Smartphone className="w-3.5 h-3.5" />}
+          <span>{isMobileFramed ? 'Full View' : 'Mobile Frame'}</span>
+        </button>
+
+        {/* Reset Onboarding Button */}
+        <button
+          onClick={onResetOnboarding}
+          className="flex items-center gap-1 bg-slate-800 hover:bg-slate-700 text-sky-300 px-2 py-1 rounded border border-slate-700 text-xs transition-colors"
+          title="Restart Onboarding"
+        >
+          <RotateCcw className="w-3.5 h-3.5" />
+          <span>Onboarding</span>
+        </button>
+      </div>
+    </div>
   );
 }

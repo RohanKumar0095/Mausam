@@ -1,29 +1,29 @@
-import { calculateWidgetScore } from './relevanceScoreCalculator.js';
-import { interpretWeatherToAction } from './weatherToActionEngine.js';
+import { calculateWidgetScore } from './relevanceScoreCalculator';
+import { interpretWeatherToAction } from './weatherToActionEngine';
 
-export const ALL_CANDIDATE_WIDGETS = [
-  { id: 'wbgt_safety', label: 'WBGT Training Safety' },
-  { id: 'dew_factor', label: 'Dew Factor & Ball Grip' },
-  { id: 'training_window', label: 'Training / Match Window' },
-  { id: 'ground_condition', label: 'Ground & Pitch Condition' },
-  { id: 'running_window', label: 'Best Running / Workout Hours' },
-  { id: 'agri_action_checklist', label: 'Crop Action Checklist' },
-  { id: 'multi_day_rainfall', label: 'Multi-Day Rainfall Trend' },
-  { id: 'irrigation_nudge', label: 'Irrigation Nudge' },
-  { id: 'frost_heat_alert', label: 'Frost / Heat Alert' },
-  { id: 'pest_disease_risk', label: 'Disease / Pest Risk Flag' },
-  { id: 'current_conditions', label: 'Current Ambient Weather' },
-  { id: 'today_forecast', label: "Today's Forecast" },
-  { id: 'commute_weather', label: 'Commute Conditions' },
-  { id: 'visibility_fog', label: 'Transit Visibility' },
-  { id: 'aqi_health', label: 'Air Quality (AQI)' },
-  { id: 'uv_heat_index', label: 'UV & Heat Index' },
-  { id: 'school_transit', label: 'School & Transit Safety' },
-  { id: 'outdoor_event_suitability', label: 'Outdoor Event Feasibility' },
-  { id: 'travel_conditions', label: 'Destination Weather' },
-  { id: 'coastal_tide', label: 'High Tide & Coastal Conditions' },
-  { id: 'rain_probability', label: 'Precipitation Timeline' },
-  { id: 'wind_gauge', label: 'Surface Wind Gauge' },
+export const CANDIDATE_WIDGETS = [
+  'wbgt_safety',
+  'dew_factor',
+  'training_window',
+  'ground_condition',
+  'running_window',
+  'agri_action_checklist',
+  'multi_day_rainfall',
+  'irrigation_nudge',
+  'frost_heat_alert',
+  'pest_disease_risk',
+  'current_conditions',
+  'today_forecast',
+  'commute_weather',
+  'visibility_fog',
+  'aqi_health',
+  'uv_heat_index',
+  'school_transit',
+  'outdoor_event_suitability',
+  'travel_conditions',
+  'coastal_tide',
+  'rain_probability',
+  'wind_gauge'
 ];
 
 export function getRankedWidgets({
@@ -33,41 +33,40 @@ export function getRankedWidgets({
   weatherData = {},
   locationPurpose = 'Home',
   severeWarningActive = false,
-  selectedPlot = 'Plot A (Rice)'
+  selectedPlot = 'Plot A (Rice)',
+  language = 'en'
 }) {
-  const scored = [];
-
-  for (const widget of ALL_CANDIDATE_WIDGETS) {
-    const scoreResult = calculateWidgetScore({
-      widgetId: widget.id,
+  const scored = CANDIDATE_WIDGETS.map(widgetId => {
+    const { score, reasons, pointsBreakdown } = calculateWidgetScore({
+      widgetId,
       selectedPersonas,
       currentActivity,
       currentTime,
       weatherData,
       locationPurpose,
-      severeWarningActive,
-      selectedPlot
+      severeWarningActive
     });
 
-    if (scoreResult.score > 0) {
-      const interpretation = interpretWeatherToAction({
-        widgetId: widget.id,
-        weatherData,
-        currentActivity,
-        currentTime,
-        selectedPersonas,
-        selectedPlot
-      });
+    if (score <= 0) return null;
 
-      scored.push({
-        id: widget.id,
-        label: widget.label,
-        score: scoreResult.score,
-        breakdown: scoreResult.breakdown,
-        ...interpretation
-      });
-    }
-  }
+    const actionData = interpretWeatherToAction({
+      widgetId,
+      weatherData,
+      currentActivity,
+      currentTime,
+      selectedPersonas,
+      selectedPlot,
+      language
+    });
+
+    return {
+      id: widgetId,
+      score,
+      reasons,
+      pointsBreakdown,
+      ...actionData
+    };
+  }).filter(Boolean);
 
   scored.sort((a, b) => b.score - a.score);
   return scored;

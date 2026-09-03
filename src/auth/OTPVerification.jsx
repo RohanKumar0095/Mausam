@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, ShieldCheck, ArrowRight, RotateCcw } from 'lucide-react';
 import { authService } from './authService';
+import { useI18n } from '../i18n/i18nContext';
 
 export default function OTPVerification({ emailOrPhone, onVerifySuccess, onBack }) {
+  const { t } = useI18n();
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [timer, setTimer] = useState(30);
   const [error, setError] = useState('');
@@ -44,7 +46,7 @@ export default function OTPVerification({ emailOrPhone, onVerifySuccess, onBack 
     const fullOtp = otp.join('');
 
     if (fullOtp.length < 6) {
-      setError('Please enter the complete 6-digit verification code.');
+      setError(t('otp_error_digits'));
       return;
     }
 
@@ -52,7 +54,7 @@ export default function OTPVerification({ emailOrPhone, onVerifySuccess, onBack 
     if (res.success) {
       onVerifySuccess();
     } else {
-      setError(res.error || 'Invalid code.');
+      setError(res.error || t('otp_error_invalid'));
     }
   };
 
@@ -75,7 +77,7 @@ export default function OTPVerification({ emailOrPhone, onVerifySuccess, onBack 
             <ArrowLeft className="w-4 h-4" />
           </button>
           <span className="text-[11px] font-mono text-slate-400 uppercase tracking-widest">
-            OTP VERIFICATION
+            {t('otp_title')}
           </span>
           <div className="w-4" />
         </div>
@@ -85,9 +87,9 @@ export default function OTPVerification({ emailOrPhone, onVerifySuccess, onBack 
           <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center mx-auto mb-2">
             <ShieldCheck className="w-5 h-5" />
           </div>
-          <h2 className="text-lg font-medium text-slate-900">Verify your account</h2>
+          <h2 className="text-lg font-bold text-slate-900">{t('otp_heading')}</h2>
           <p className="text-xs text-slate-500 mt-1 font-normal">
-            We've sent a 6-digit verification code to <strong className="font-medium text-slate-700">{emailOrPhone || 'your contact'}</strong>.
+            {t('otp_sent_to')} <strong className="font-semibold text-slate-700">{emailOrPhone || 'your contact'}</strong>.
           </p>
         </div>
 
@@ -99,7 +101,7 @@ export default function OTPVerification({ emailOrPhone, onVerifySuccess, onBack 
 
         {resendSuccess && (
           <div className="mb-4 p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs text-center">
-            A new OTP code has been dispatched.
+            {t('otp_resend_success')}
           </div>
         )}
 
@@ -124,24 +126,24 @@ export default function OTPVerification({ emailOrPhone, onVerifySuccess, onBack 
 
           <button
             type="submit"
-            className="w-full py-2.5 bg-brand hover:bg-brand-dark text-white rounded-mausam text-xs font-medium flex items-center justify-center gap-1.5 shadow-xs transition-colors"
+            className="w-full py-2.5 bg-brand hover:bg-brand-dark text-white rounded-mausam text-xs font-semibold flex items-center justify-center gap-1.5 shadow-xs transition-colors"
           >
-            <span>Verify & Continue</span>
+            <span>{t('otp_verify_btn')}</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </form>
 
         {/* Resend footer */}
         <div className="text-center text-xs text-slate-500 pt-4 border-t border-slate-200 mt-4 flex items-center justify-between">
-          <span>Didn't receive the code?</span>
+          <span>{t('otp_didnt_receive')}</span>
           {timer > 0 ? (
-            <span className="text-slate-400 font-mono text-[11px]">Resend in {timer}s</span>
+            <span className="text-slate-400 font-mono text-[11px]">{t('otp_resend_in')} {timer}s</span>
           ) : (
             <button
               onClick={handleResend}
-              className="text-brand font-medium hover:underline flex items-center gap-1"
+              className="text-brand font-semibold hover:underline flex items-center gap-1"
             >
-              <RotateCcw className="w-3 h-3" /> Resend OTP
+              <RotateCcw className="w-3 h-3" /> {t('otp_resend_btn')}
             </button>
           )}
         </div>

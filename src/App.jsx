@@ -8,6 +8,8 @@ import RoutineEditorModal from './components/routine/RoutineEditorModal';
 import LocationSelector from './components/locations/LocationSelector';
 import OnboardingModal from './components/onboarding/OnboardingModal';
 import ProfileModal from './components/profile/ProfileModal';
+import MausamAssistant from './chatbot/MausamAssistant';
+import { useI18n } from './i18n/i18nContext';
 
 // Auth & Onboarding Flow Screens
 import WelcomeScreen from './auth/WelcomeScreen';
@@ -40,6 +42,8 @@ import { derivePersonasFromPreferences } from './engine/personaDerivationEngine'
 import { authService } from './auth/authService';
 
 export default function App() {
+  const { language, setLanguage } = useI18n();
+
   // Navigation & Screen Router
   const [currentScreen, setCurrentScreen] = useState('welcome');
 
@@ -67,6 +71,7 @@ export default function App() {
   const [isRoutineEditorOpen, setIsRoutineEditorOpen] = useState(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isChatbotOpen, setIsChatbotOpen] = useState(false);
   const [explainingWidget, setExplainingWidget] = useState(null);
   const [dismissedNudgeId, setDismissedNudgeId] = useState(null);
 
@@ -120,9 +125,10 @@ export default function App() {
       weatherData,
       locationPurpose: weatherData.purpose,
       severeWarningActive: simulatedSeverity === 'RED',
-      selectedPlot
+      selectedPlot,
+      language
     });
-  }, [selectedPersonas, currentActivity, currentTime, weatherData, simulatedSeverity, selectedPlot]);
+  }, [selectedPersonas, currentActivity, currentTime, weatherData, simulatedSeverity, selectedPlot, language]);
 
   // Generate Daily Briefing
   const briefingText = useMemo(() => {
@@ -131,9 +137,10 @@ export default function App() {
       currentActivity,
       weatherData,
       selectedPersonas,
-      selectedPlot
+      selectedPlot,
+      language
     });
-  }, [currentTime, currentActivity, weatherData, selectedPersonas, selectedPlot]);
+  }, [currentTime, currentActivity, weatherData, selectedPersonas, selectedPlot, language]);
 
   // Generate Contextual Nudge
   const nudge = useMemo(() => {
@@ -142,11 +149,12 @@ export default function App() {
       currentActivity,
       weatherData,
       selectedPersonas,
-      selectedPlot
+      selectedPlot,
+      language
     });
     if (rawNudge && rawNudge.id === dismissedNudgeId) return null;
     return rawNudge;
-  }, [currentTime, currentActivity, weatherData, selectedPersonas, dismissedNudgeId, selectedPlot]);
+  }, [currentTime, currentActivity, weatherData, selectedPersonas, dismissedNudgeId, selectedPlot, language]);
 
   // Evaluate Safety Hierarchy (Green / Amber / Red)
   const safetyInfo = useMemo(() => {
@@ -154,9 +162,10 @@ export default function App() {
       weatherData,
       simulatedSeverity,
       currentActivity,
-      selectedPersonas
+      selectedPersonas,
+      language
     });
-  }, [weatherData, simulatedSeverity, currentActivity, selectedPersonas]);
+  }, [weatherData, simulatedSeverity, currentActivity, selectedPersonas, language]);
 
   // Handlers
   const handleTogglePersona = (personaId) => {
@@ -447,6 +456,7 @@ export default function App() {
             activeTab={activeTab === 'radar' ? 'forecast' : activeTab}
             onTabChange={setActiveTab}
             alertCount={safetyInfo.isSevere ? 1 : 0}
+            onOpenChat={() => setIsChatbotOpen(true)}
           />
         </div>
       </div>
@@ -519,6 +529,21 @@ export default function App() {
       <OnboardingModal
         isOpen={isOnboardingOpen}
         onComplete={handleOnboardingComplete}
+      />
+
+      {/* MAUSAM Weather Assistant Chatbot Modal */}
+      <MausamAssistant
+        isOpen={isChatbotOpen}
+        onClose={() => setIsChatbotOpen(false)}
+        user={currentUser}
+        selectedPersonas={selectedPersonas}
+        currentLocation={weatherData}
+        currentTime={currentTime}
+        currentActivity={currentActivity}
+        routine={routine}
+        savedLocations={customLocationStore.getAllLocations()}
+        weatherData={weatherData}
+        safetyInfo={safetyInfo}
       />
     </div>
   );

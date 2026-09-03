@@ -1,5 +1,6 @@
 import React from 'react';
-import { Menu, Search, MapPin, Sparkles, ChevronDown } from 'lucide-react';
+import { Menu, Search, MapPin, ChevronDown } from 'lucide-react';
+import { useI18n } from '../../i18n/i18nContext';
 
 export default function Header({
   locationData,
@@ -10,62 +11,53 @@ export default function Header({
   currentTime,
   onOpenSearch
 }) {
-  const loc = locationData || { name: 'Birla Institute of Technology, circular road', purpose: 'Home' };
+  const { t } = useI18n();
 
   return (
-    <header className="relative z-20 px-4 pt-3 pb-2 text-white">
-      {/* Top Bar: Hamburger, Location, Date, Search */}
-      <div className="flex items-center justify-between gap-2">
-        <button
-          onClick={onOpenDrawer}
-          className="p-2 -ml-2 rounded-full hover:bg-white/10 active:scale-95 transition-all text-white/90"
-          aria-label="Open Menu"
-        >
-          <Menu className="w-6 h-6" />
-        </button>
+    <header className="w-full text-white bg-transparent">
+      {/* Top Utility Bar */}
+      <div className="px-4 pt-3 pb-2 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onOpenDrawer}
+            className="p-1.5 -ml-1.5 rounded-full hover:bg-white/10 active:bg-white/20 transition-colors"
+            title={t('drawer_services_title')}
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+
+          <div>
+            <span className="text-[13px] font-bold tracking-wider font-mono">
+              {t('app_title')}
+            </span>
+            <span className="text-[10px] text-sky-200 block font-normal leading-none mt-0.5">
+              {t('imd_title')}
+            </span>
+          </div>
+        </div>
 
         <button
           onClick={onOpenLocationPicker}
-          className="flex-1 flex flex-col items-center justify-center text-center px-2 py-0.5 rounded-lg hover:bg-white/10 transition-colors group"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-white/15 hover:bg-white/25 rounded-full backdrop-blur-md transition-all border border-white/20 text-xs shadow-xs"
         >
-          <div className="flex items-center gap-1.5 max-w-[240px] truncate text-center">
-            <MapPin className="w-4 h-4 text-sky-300 flex-shrink-0" />
-            <span className="text-[15px] font-medium tracking-tight truncate text-white">
-              {loc.name}
-            </span>
-            <ChevronDown className="w-3.5 h-3.5 text-white/70 group-hover:translate-y-0.5 transition-transform" />
-          </div>
-          <div className="flex items-center gap-2 text-[11px] text-sky-200/80 font-normal mt-0.5">
-            <span>03 September 2026</span>
-            <span>•</span>
-            <span className="bg-white/20 text-white px-1.5 py-0.2 rounded text-[10px] font-medium">
-              {loc.purpose || 'Personalized'}
-            </span>
-          </div>
-        </button>
-
-        <button
-          onClick={onOpenSearch}
-          className="p-2 -mr-2 rounded-full hover:bg-white/10 active:scale-95 transition-all text-white/90"
-          aria-label="Search"
-        >
-          <Search className="w-5 h-5" />
+          <MapPin className="w-3.5 h-3.5 text-sky-300 flex-shrink-0" />
+          <span className="font-medium max-w-[130px] truncate text-white">
+            {locationData?.name || 'Gaya'}
+          </span>
+          <ChevronDown className="w-3 h-3 text-sky-300 flex-shrink-0" />
         </button>
       </div>
 
-      {/* Personalized Daily Briefing */}
+      {/* Daily Briefing Banner */}
       {briefingText && (
-        <div className="mt-2.5 bg-gradient-to-r from-sky-900/70 to-brand-dark/90 backdrop-blur-md rounded-mausam p-3 border border-sky-400/25 shadow-sm text-white">
-          <div className="flex items-start gap-2.5">
-            <div className="w-6 h-6 rounded-full bg-sky-400/20 flex items-center justify-center flex-shrink-0 mt-0.5 border border-sky-300/30">
-              <Sparkles className="w-3.5 h-3.5 text-sky-300 animate-pulse" />
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center justify-between text-[11px] uppercase tracking-wider text-sky-200 font-medium mb-0.5">
-                <span>Personalized Daily Briefing</span>
-                <span className="text-[10px] text-sky-300/80 font-mono">{currentTime} IST</span>
-              </div>
-              <p className="text-[13px] leading-snug text-sky-50 font-normal">
+        <div className="mx-4 mt-2 mb-1 p-3 rounded-mausam bg-white/15 backdrop-blur-md border border-white/20 shadow-sm">
+          <div className="flex items-start gap-2">
+            <span className="text-sm">🌤️</span>
+            <div className="flex-1 min-w-0">
+              <span className="text-[10.5px] uppercase tracking-wider font-semibold text-sky-300 block mb-0.5">
+                {t('official_weather_info')} • {currentTime}
+              </span>
+              <p className="text-[12px] font-normal leading-relaxed text-white">
                 {briefingText}
               </p>
             </div>

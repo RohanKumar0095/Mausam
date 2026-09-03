@@ -1,197 +1,164 @@
 import React from 'react';
 import { 
   X, 
-  User, 
   MapPin, 
-  Sprout, 
-  Plane, 
-  Users, 
-  Flame, 
-  Zap, 
+  User, 
+  LogOut, 
+  LogIn, 
+  Settings, 
+  ShieldCheck, 
   Radio, 
   CloudRain, 
-  Navigation, 
-  Globe, 
-  Heart, 
+  Compass, 
+  Layers, 
   Bell, 
-  ChevronRight,
-  Sparkles,
-  Settings,
-  LogOut,
-  UserCheck
+  Globe
 } from 'lucide-react';
+import { useI18n } from '../../i18n/i18nContext';
 
-export default function SideDrawer({ 
-  isOpen, 
-  onClose, 
-  currentLocation, 
+export default function SideDrawer({
+  isOpen,
+  onClose,
+  currentLocation = {},
   onSelectTab,
   currentUser,
-  currentLanguage = 'English',
+  currentLanguage,
   onOpenProfile,
   onOpenLogin,
-  onLogout 
+  onLogout
 }) {
+  const { language, setLanguage, t } = useI18n();
+  const isHindi = language === 'hi';
+
   if (!isOpen) return null;
 
-  const menuItems = [
-    { id: 'agromet', label: 'Agromet Products', icon: Sprout, tab: 'forecast' },
-    { id: 'aviation', label: 'Aviation Weather', icon: Plane, tab: 'forecast' },
-    { id: 'crowdsource', label: 'Crowd Source', icon: Users, tab: 'forecast' },
-    { id: 'cyclone', label: 'Cyclone Tracker', icon: Flame, tab: 'alerts' },
-    { id: 'lightning', label: 'Lightning Nowcast', icon: Zap, tab: 'alerts' },
-    { id: 'radar', label: 'Radar & Satellite', icon: Radio, tab: 'radar' },
-    { id: 'rain_alert', label: 'Rain Alert', icon: CloudRain, tab: 'alerts' },
-    { id: 'route_cast', label: 'Route Now Cast', icon: Navigation, tab: 'forecast' },
-  ];
-
-  const secondaryItems = [
-    { id: 'lang', label: currentLanguage || 'English', icon: Globe, hasArrow: true, action: onOpenProfile },
-    { id: 'favs', label: 'Favourites', icon: Heart, tab: 'locations' },
-    { id: 'notifs', label: 'Notification', icon: Bell, tab: 'alerts' },
-  ];
-
-  const isLoggedIn = !!(currentUser && currentUser.userId);
-
   return (
-    <div className="fixed inset-0 z-50 flex">
-      <div
+    <div className="fixed inset-0 z-50 flex animate-fadeIn">
+      {/* Backdrop */}
+      <div 
         onClick={onClose}
-        className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs transition-opacity animate-fadeIn"
+        className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs transition-opacity" 
       />
 
-      <div className="relative w-80 max-w-[85vw] bg-white h-full shadow-2xl flex flex-col z-10 animate-slideIn">
-        {/* User Profile Header */}
-        <div className="p-4 border-b border-slate-100 bg-slate-50/70">
+      {/* Drawer Content */}
+      <div className="relative w-72 max-w-[85vw] bg-white text-slate-800 h-full shadow-2xl z-10 flex flex-col justify-between">
+        {/* Top Header */}
+        <div className="bg-brand text-white p-4">
           <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white flex-shrink-0 shadow-xs ${
-                isLoggedIn ? 'bg-brand' : 'bg-slate-300 text-slate-600'
-              }`}>
-                {isLoggedIn ? <UserCheck className="w-5 h-5" /> : <User className="w-5 h-5" />}
-              </div>
-              <div className="min-w-0">
-                {isLoggedIn ? (
-                  <div>
-                    <h4 className="text-sm font-medium text-slate-900 truncate font-mono">
-                      @{currentUser.userId}
-                    </h4>
-                    <button
-                      onClick={() => {
-                        onClose();
-                        onOpenProfile();
-                      }}
-                      className="text-[11px] text-brand hover:underline font-medium block"
-                    >
-                      Personalization & Routine
-                    </button>
-                  </div>
-                ) : (
-                  <div>
-                    <h4 className="text-sm font-medium text-slate-900">Guest User</h4>
-                    <button
-                      onClick={() => {
-                        onClose();
-                        onOpenLogin();
-                      }}
-                      className="text-[11px] text-brand font-medium hover:underline"
-                    >
-                      Log in / Sign up
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-600">
-              <X className="w-5 h-5" />
+            <span className="text-xs font-mono tracking-widest text-sky-200">
+              {t('app_title')} • IMD
+            </span>
+            <button onClick={onClose} className="p-1 rounded-full hover:bg-white/20 text-white/90">
+              <X className="w-4 h-4" />
             </button>
           </div>
 
-          {currentLocation && (
-            <div className="bg-white p-2.5 rounded-lg border border-slate-200 text-xs text-slate-700 flex items-start gap-2 shadow-2xs">
-              <MapPin className="w-4 h-4 text-brand flex-shrink-0 mt-0.5" />
-              <div className="flex-1 min-w-0">
-                <p className="font-medium truncate text-[12px]">{currentLocation.name}</p>
-                <p className="text-[11px] text-slate-500 mt-0.5">{currentLocation.current?.temp}°C • {currentLocation.current?.condition}</p>
-              </div>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white">
+              <User className="w-5 h-5" />
             </div>
-          )}
+            <div className="flex-1 min-w-0">
+              <h4 className="font-semibold text-sm truncate text-white">
+                {currentUser ? (currentUser.userId || 'rohan_weather') : t('drawer_guest_user')}
+              </h4>
+              <p className="text-[11px] text-sky-200 truncate">
+                📍 {currentLocation.name || 'Gaya'}
+              </p>
+            </div>
+          </div>
         </div>
 
-        {/* IMD Weather Services */}
-        <div className="flex-1 overflow-y-auto py-2">
-          <div className="px-3 pb-1 text-[10px] uppercase tracking-wider text-slate-400 font-medium">
-            IMD Weather Services
+        {/* Middle Navigation Services */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-1 text-xs">
+          <div className="p-2 mb-2 rounded-lg bg-sky-50 border border-sky-100 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Globe className="w-4 h-4 text-brand" />
+              <span className="font-medium text-slate-800">{t('profile_app_language')}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setLanguage('en')}
+                className={`px-2 py-0.5 rounded text-[10.5px] font-medium transition-all ${
+                  !isHindi ? 'bg-brand text-white' : 'bg-white text-slate-600 border border-slate-200'
+                }`}
+              >
+                EN
+              </button>
+              <button
+                onClick={() => setLanguage('hi')}
+                className={`px-2 py-0.5 rounded text-[10.5px] font-medium transition-all ${
+                  isHindi ? 'bg-brand text-white' : 'bg-white text-slate-600 border border-slate-200'
+                }`}
+              >
+                हिन्दी
+              </button>
+            </div>
           </div>
 
-          {menuItems.map(item => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.id}
-                onClick={() => {
-                  if (item.tab && onSelectTab) onSelectTab(item.tab);
-                  onClose();
-                }}
-                className="w-full flex items-center gap-3 px-4 py-2.5 text-left text-slate-700 hover:bg-slate-50 active:bg-slate-100 transition-colors text-xs font-normal"
-              >
-                <Icon className="w-4 h-4 text-slate-500 stroke-[1.8]" />
-                <span className="flex-1 text-[13px]">{item.label}</span>
-              </button>
-            );
-          })}
+          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block px-2 pt-1 pb-0.5">
+            {t('drawer_services_title')}
+          </span>
 
-          <div className="my-2 border-t border-slate-100" />
+          <button
+            onClick={() => onSelectTab('home')}
+            className="w-full flex items-center gap-2.5 p-2 rounded hover:bg-slate-100 text-slate-700 text-left font-normal"
+          >
+            <Radio className="w-4 h-4 text-brand" />
+            <span>{t('drawer_radar')}</span>
+          </button>
 
-          {secondaryItems.map(item => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.id}
-                onClick={() => {
-                  if (item.action) {
-                    onClose();
-                    item.action();
-                  } else if (item.tab && onSelectTab) {
-                    onSelectTab(item.tab);
-                    onClose();
-                  }
-                }}
-                className="w-full flex items-center justify-between px-4 py-2 text-left text-slate-700 hover:bg-slate-50 transition-colors text-xs"
-              >
-                <div className="flex items-center gap-3">
-                  <Icon className="w-4 h-4 text-slate-500 stroke-[1.8]" />
-                  <span className="text-[13px]">{item.label}</span>
-                </div>
-                {item.hasArrow && <ChevronRight className="w-4 h-4 text-slate-400" />}
-              </button>
-            );
-          })}
+          <button
+            onClick={() => onSelectTab('forecast')}
+            className="w-full flex items-center gap-2.5 p-2 rounded hover:bg-slate-100 text-slate-700 text-left font-normal"
+          >
+            <CloudRain className="w-4 h-4 text-sky-600" />
+            <span>{t('drawer_rain_alert')}</span>
+          </button>
 
-          {isLoggedIn && (
+          <button
+            onClick={() => onSelectTab('alerts')}
+            className="w-full flex items-center gap-2.5 p-2 rounded hover:bg-slate-100 text-slate-700 text-left font-normal"
+          >
+            <ShieldCheck className="w-4 h-4 text-amber-600" />
+            <span>{t('drawer_lightning')}</span>
+          </button>
+
+          <button
+            onClick={() => onSelectTab('locations')}
+            className="w-full flex items-center gap-2.5 p-2 rounded hover:bg-slate-100 text-slate-700 text-left font-normal"
+          >
+            <MapPin className="w-4 h-4 text-emerald-600" />
+            <span>{t('nav_locations')}</span>
+          </button>
+
+          <button
+            onClick={onOpenProfile}
+            className="w-full flex items-center gap-2.5 p-2 rounded hover:bg-slate-100 text-slate-700 text-left font-normal"
+          >
+            <Settings className="w-4 h-4 text-slate-600" />
+            <span>{t('drawer_profile_link')}</span>
+          </button>
+        </div>
+
+        {/* Bottom Actions */}
+        <div className="p-3 border-t border-slate-200 bg-slate-50">
+          {currentUser ? (
             <button
-              onClick={() => {
-                onClose();
-                onLogout();
-              }}
-              className="w-full flex items-center gap-3 px-4 py-2 text-left text-rose-600 hover:bg-rose-50 transition-colors text-xs mt-1"
+              onClick={onLogout}
+              className="w-full py-2 px-3 rounded text-rose-600 hover:bg-rose-50 flex items-center justify-center gap-2 text-xs font-medium transition-colors"
             >
-              <LogOut className="w-4 h-4 stroke-[1.8]" />
-              <span className="text-[13px] font-medium">Logout</span>
+              <LogOut className="w-4 h-4" />
+              <span>{t('drawer_logout')}</span>
+            </button>
+          ) : (
+            <button
+              onClick={onOpenLogin}
+              className="w-full py-2 px-3 rounded bg-brand text-white hover:bg-brand-dark flex items-center justify-center gap-2 text-xs font-medium transition-colors shadow-xs"
+            >
+              <LogIn className="w-4 h-4" />
+              <span>{t('drawer_login_signup')}</span>
             </button>
           )}
-        </div>
-
-        {/* Hackathon SIH 2026 Footer info */}
-        <div className="p-3 border-t border-slate-100 bg-brand-light/40 text-[11px] text-brand">
-          <div className="flex items-center gap-1.5 font-medium">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>SIH 2026 — Problem SIH26076</span>
-          </div>
-          <p className="text-[10px] text-slate-500 mt-0.5">
-            Personalized Homepage for MAUSAM Mobile App
-          </p>
         </div>
       </div>
     </div>

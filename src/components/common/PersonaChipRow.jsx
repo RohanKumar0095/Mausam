@@ -1,6 +1,7 @@
 import React from 'react';
 import { PERSONAS } from '../../data/personaDefinitions';
 import DraggableScrollRow from './DraggableScrollRow';
+import { useI18n } from '../../i18n/i18nContext';
 import { 
   Activity, 
   HeartPulse, 
@@ -27,17 +28,21 @@ const ICON_MAP = {
 };
 
 export default function PersonaChipRow({ selectedPersonas = [], onTogglePersona }) {
+  const { language, t } = useI18n();
+  const isHindi = language === 'hi';
+
   return (
     <div className="w-full py-1.5">
       <div className="px-4 flex items-center justify-between text-xs text-white/70 mb-1.5">
-        <span className="font-medium text-sky-100">Active Profiles</span>
-        <span className="text-[11px] text-sky-200/80">Multi-select to blend</span>
+        <span className="font-medium text-sky-100">{t('home_active_profiles')}</span>
+        <span className="text-[11px] text-sky-200/80">{t('home_multi_select_blend')}</span>
       </div>
       
       <DraggableScrollRow className="gap-2 py-1 px-4">
         {PERSONAS.map(p => {
           const isSelected = selectedPersonas.includes(p.id);
           const Icon = ICON_MAP[p.icon] || Activity;
+          const displayLabel = isHindi ? p.labelHi : p.label;
 
           return (
             <button
@@ -54,14 +59,13 @@ export default function PersonaChipRow({ selectedPersonas = [], onTogglePersona 
               }}
             >
               <Icon className="w-3.5 h-3.5 flex-shrink-0" />
-              <span className="font-medium tracking-tight">{p.label}</span>
+              <span className="font-medium tracking-tight">{displayLabel}</span>
               {isSelected && (
                 <Check className="w-3 h-3 ml-0.5 opacity-90 stroke-[2.5] flex-shrink-0" />
               )}
             </button>
           );
         })}
-        {/* Trailing spacer for partial edge visibility */}
         <div className="w-3 flex-shrink-0" aria-hidden="true" />
       </DraggableScrollRow>
     </div>

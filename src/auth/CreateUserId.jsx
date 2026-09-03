@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { ArrowLeft, User, Check, Sparkles, ArrowRight } from 'lucide-react';
 import { authService } from './authService';
+import { useI18n } from '../i18n/i18nContext';
 
 export default function CreateUserId({ onUserIdCreated, onBack }) {
-  const [userId, setUserId] = useState('');
+  const { t } = useI18n();
+  const [userId, setUserId] = useState('rohan_weather');
   const [error, setError] = useState('');
 
   const cleanUserId = userId.trim().toLowerCase();
@@ -13,7 +15,7 @@ export default function CreateUserId({ onUserIdCreated, onBack }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!isValidFormat) {
-      setError('User ID must be 4–20 characters and contain only letters, numbers, or underscores.');
+      setError('User ID must be 4–20 characters (letters, numbers, _).');
       return;
     }
 
@@ -33,16 +35,16 @@ export default function CreateUserId({ onUserIdCreated, onBack }) {
             <ArrowLeft className="w-4 h-4" />
           </button>
           <span className="text-[11px] font-mono text-slate-400 uppercase tracking-widest">
-            STEP 2 OF 3 • USER ID
+            {t('userid_step')}
           </span>
           <div className="w-4" />
         </div>
 
         {/* Title */}
         <div className="mb-5">
-          <h2 className="text-lg font-medium text-slate-900">Create your MAUSAM User ID</h2>
+          <h2 className="text-lg font-bold text-slate-900">{t('userid_title')}</h2>
           <p className="text-xs text-slate-500 mt-0.5 font-normal">
-            This unique handle will identify your personalized routine and weather preferences.
+            {t('userid_subtitle')}
           </p>
         </div>
 
@@ -55,7 +57,7 @@ export default function CreateUserId({ onUserIdCreated, onBack }) {
         <form onSubmit={handleSubmit} className="space-y-4 flex-1 text-xs">
           <div>
             <label className="block text-slate-700 font-medium mb-1 text-[11.5px]">
-              User ID
+              {t('userid_label')}
             </label>
             <div className="relative">
               <input
@@ -65,7 +67,7 @@ export default function CreateUserId({ onUserIdCreated, onBack }) {
                   setUserId(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''));
                   setError('');
                 }}
-                placeholder="e.g. rohan_weather"
+                placeholder={t('userid_placeholder')}
                 className="w-full pl-9 pr-8 py-2 bg-white border border-slate-300 rounded-mausam text-xs font-mono focus:ring-1 focus:ring-brand focus:border-brand focus:outline-none"
               />
               <User className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
@@ -76,30 +78,30 @@ export default function CreateUserId({ onUserIdCreated, onBack }) {
 
             {/* Validation helper status */}
             <div className="mt-2 text-[11px] flex items-center justify-between">
-              <span className="text-slate-400 font-mono">4–20 chars (letters, numbers, _)</span>
+              <span className="text-slate-400 font-mono">{t('userid_rules')}</span>
               {cleanUserId.length >= 4 && (
                 <span className={isAvailable ? 'text-emerald-700 font-medium' : 'text-rose-600'}>
-                  {isAvailable ? '✓ Available' : 'Unavailable'}
+                  {isAvailable ? t('userid_available') : t('userid_unavailable')}
                 </span>
               )}
             </div>
           </div>
 
           <div className="p-3 bg-brand-light/60 rounded-mausam border border-brand/20 text-brand text-xs space-y-1">
-            <span className="font-medium flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5" /> What happens next?
+            <span className="font-semibold flex items-center gap-1">
+              <Sparkles className="w-3.5 h-3.5" /> {t('userid_what_next_title')}
             </span>
             <p className="text-[11px] text-slate-600 leading-snug">
-              We will personalize your MAUSAM weather engine based on your daily schedule, locations, and safety priorities.
+              {t('userid_what_next_desc')}
             </p>
           </div>
 
           <button
             type="submit"
             disabled={!isAvailable}
-            className="w-full py-2.5 mt-4 bg-brand hover:bg-brand-dark disabled:opacity-50 text-white rounded-mausam text-xs font-medium flex items-center justify-center gap-1.5 shadow-xs transition-colors"
+            className="w-full py-2.5 mt-4 bg-brand hover:bg-brand-dark disabled:opacity-50 text-white rounded-mausam text-xs font-semibold flex items-center justify-center gap-1.5 shadow-xs transition-colors"
           >
-            <span>Continue to Personalization</span>
+            <span>{t('userid_continue')}</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </form>
