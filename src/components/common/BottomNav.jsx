@@ -27,12 +27,12 @@ export default function BottomNav({ activeTab, onTabChange, alertCount = 0, onOp
         <span className="text-[10px] mt-0.5">{t('nav_forecast')}</span>
       </button>
 
-      {/* Floating / Integrated MAUSAM Assistant Button */}
+      {/* MAUSAM Assistant Trigger Button */}
       <button
         onClick={onOpenChat}
-        className="flex items-center gap-1.5 px-3 py-1.5 -my-1 rounded-full bg-gradient-to-r from-sky-400 to-brand-light text-slate-900 font-medium text-[11px] shadow-md hover:scale-105 active:scale-95 transition-all border border-sky-200 animate-pulse"
+        className="flex items-center gap-1.5 px-3 py-1.5 -my-1 rounded-full bg-gradient-to-r from-[#D85A30] to-[#ba4b25] text-white font-semibold text-[11px] shadow-md hover:scale-105 active:scale-95 transition-all border border-amber-300/40"
       >
-        <Sparkles className="w-3.5 h-3.5 text-brand fill-brand" />
+        <Sparkles className="w-3.5 h-3.5 text-amber-200 fill-amber-200" />
         <span>{t('nav_chat_btn')}</span>
       </button>
 

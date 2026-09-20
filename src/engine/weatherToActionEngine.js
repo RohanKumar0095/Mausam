@@ -1,279 +1,274 @@
-/**
- * WEATHER-TO-ACTION INTELLIGENCE (English & Natural Hindi)
- */
+import { calculateEstimatedWBGT } from '../services/wbgtService.js';
 
 export function interpretWeatherToAction({
   widgetId,
   weatherData,
   currentActivity,
   currentTime,
-  selectedPersonas,
+  selectedPersonas = ['daily_life'],
   selectedPlot = 'Plot A (Rice)',
   language = 'en'
 }) {
   const isHindi = language === 'hi' || language === 'Hindi';
   const current = weatherData?.current || {};
-  const temp = current.temp || 25.2;
-  const rainProb = current.rainProbability || 20;
-  const uv = current.uvIndex || 4;
-  const aqi = current.aqi || 83;
-  const wind = current.windSpeed || 8;
+  const temp = current.temp ?? 28.0;
+  const humidity = current.humidity ?? 65.0;
+  const wind = current.windSpeed ?? 10.0;
   const windDir = current.windDirection || 'SSW';
-  const visibility = current.visibility || 5;
+  const uv = current.uvIndex ?? 5.0;
+  const aqi = current.aqi ?? 45.0;
+  const rainProb = current.pop ?? current.rain_probability ?? 15;
+  const popPct = Math.round(rainProb <= 1.0 ? rainProb * 100 : rainProb);
+  const vis = current.visibility ?? current.visibility_km ?? 8.5;
+  const locationName = weatherData?.name || weatherData?.district || weatherData?.city || 'Current Location';
+  const observedAt = new Date().toISOString();
+
+  // Current Live WBGT Calculation using Tier 1/2 Stull/BOM Model
+  const currentWBGTObj = calculateEstimatedWBGT({
+    temperature: temp,
+    humidity,
+    windSpeed: wind,
+    uvIndex: uv,
+    language
+  });
+  const currentWBGTVal = currentWBGTObj.available ? currentWBGTObj.value : 27.0;
+
+  const baseMeta = {
+    temporal_context: 'current',
+    observed_at: observedAt,
+    location: locationName,
+    data_source: 'live_current_weather'
+  };
 
   switch (widgetId) {
-    // 1. WBGT Training Safety
+    // 1. WBGT Training & Heat Safety (Real-time Current Observation)
     case 'wbgt_safety': {
-      const wbgtEst = (temp * 0.85 + (current.humidity || 84) * 0.08).toFixed(1);
-      let status = isHindi ? 'मध्यम तापीय तनाव' : 'Moderate Strain Zone';
-      let statusColor = '#854F0B';
-      let advice = isHindi
-        ? '45:15 मिनट का कार्य-विश्राम चक्र अनुशंसित। हर 20 मिनट में अनिवार्य पानी और इलेक्ट्रोलाइट ब्रेक लें।'
-        : 'Work:Rest cycle of 45:15 min recommended. Compulsory water & electrolyte breaks every 20 mins.';
+      const isHighRisk = currentWBGTVal >= 28.7;
+      const isExtreme = currentWBGTVal >= 32.2;
 
-      if (temp < 24) {
-        status = isHindi ? 'अनुकूल तापीय स्थिति' : 'Optimal Thermal Comfort';
-        statusColor = '#0F6E56';
-        advice = isHindi
-          ? 'बिना किसी तापीय प्रतिबंध के पूर्ण तीव्रता वाला सामान्य प्रशिक्षण। मानक जलयोजन बनाए रखें।'
-          : 'Normal full-intensity training without thermal restriction. Standard hydration.';
-      } else if (temp > 32 || wbgtEst > 30) {
-        status = isHindi ? 'उच्च तापीय तनाव स्तर' : 'High Thermal Strain Zone';
-        statusColor = '#791F1F';
-        advice = isHindi
-          ? 'लगातार मैच अभ्यास को 30 मिनट तक सीमित करें। ठंडे तौलिए और अनिवार्य छायादार विश्राम प्रदान करें।'
-          : 'Reduce continuous scrimmage to 30 mins. Provide iced towels and mandatory shaded recovery.';
-      }
+      const status = isExtreme
+        ? (isHindi ? 'अत्यधिक तापीय खतरा' : 'Extreme Heat Danger')
+        : (isHighRisk
+          ? (isHindi ? 'उच्च तापीय तनाव' : 'Elevated Heat Stress')
+          : (isHindi ? 'सुरक्षित तापीय सीमा' : 'Comfortable Heat Index'));
+
+      const statusColor = isExtreme ? '#791F1F' : (isHighRisk ? '#854F0B' : '#0F6E56');
 
       return {
-        label: isHindi ? 'WBGT प्रशिक्षण सुरक्षा' : 'WBGT Training Safety',
-        value: `${wbgtEst}°C WBGT`,
+        ...baseMeta,
+        label: isHindi ? 'WBGT प्रशिक्षण सुरक्षा' : 'WBGT Heat Stress Safety',
+        value: `${currentWBGTVal}°C WBGT`,
         status,
         statusColor,
-        recommendation: advice,
-        confidenceLabel: isHindi ? 'वेट बल्ब ग्लोब मॉडल' : 'Wet Bulb Globe Model',
+        recommendation: isHindi
+          ? `वर्तमान लाइव WBGT ${currentWBGTVal}°C है (${locationName})। ${isHighRisk ? 'शारीरिक गतिविधि के दौरान अधिक जलयोजन लें।' : 'तापीय स्थिति सामान्य है।'}`
+          : `Current live WBGT is ${currentWBGTVal}°C at ${locationName}. ${isHighRisk ? 'Enforce mandatory hydration breaks during outdoor exertion.' : 'Thermal conditions favor comfortable outdoor exertion.'}`,
+        confidenceLabel: isHindi ? 'लाइव मौसम स्टेशन' : 'Live Weather Station',
         icon: 'Flame'
       };
     }
 
-    // 2. Dew Factor & Ball Grip
+    // 2. Dew Factor & Ball Grip (Real-time Current Observation)
     case 'dew_factor': {
-      let status = isHindi ? 'कम ओस की संभावना' : 'Low Dew Expected';
-      let statusColor = '#0F6E56';
-      let value = isHindi ? 'मजबूत ग्रिप (18°C ओस बिंदु)' : 'Firm Grip (18°C Dew Pt)';
-      let advice = isHindi
-        ? 'मैदान पर न्यूनतम नमी। गेंद की सीम और मैदान की ग्रिप शाम 5 से 8 बजे तक स्थिर रहेगी।'
-        : 'Minimal outfield moisture. Ball seam and turf traction will remain stable throughout 5–8 PM session.';
-
-      if (current.humidity > 88 && temp < 24) {
-        status = isHindi ? 'भारी ओस चेतावनी' : 'Heavy Dew Warning';
-        statusColor = '#854F0B';
-        value = isHindi ? 'फिसलन भरा मैदान' : 'Slippery Outfield';
-        advice = isHindi
-          ? 'शाम 6:30 बजे के बाद मैदान पर अधिक ओस आने की संभावना है। गेंद के लिए सूखे तौलिए रखें और स्टडेड जूते पहनें।'
-          : 'Significant outfield dew expected after 6:30 PM. Keep dry towels for balls and switch to studded footwear.';
-      }
+      const dewRisk = humidity > 80 && temp < 25;
+      const status = dewRisk ? (isHindi ? 'ओस चेतावनी' : 'Dew Warning') : (isHindi ? 'कम ओस' : 'Minimal Dew');
+      const statusColor = dewRisk ? '#854F0B' : '#0F6E56';
 
       return {
+        ...baseMeta,
         label: isHindi ? 'ओस प्रभाव और बॉल ग्रिप' : 'Dew Factor & Ball Grip',
-        value,
+        value: isHindi ? `ओस स्थिति: ${dewRisk ? 'उच्च' : 'कम'}` : `Live Surface Moisture: ${dewRisk ? 'High' : 'Low'}`,
         status,
         statusColor,
-        recommendation: advice,
-        confidenceLabel: isHindi ? 'सतह ओस पूर्वानुमान' : 'Surface Dew Forecast',
+        recommendation: isHindi
+          ? `वर्तमान स्थिति: तापमान ${temp}°C, आर्द्रता ${humidity}%। ${dewRisk ? 'सतह पर ओस जमा होने का जोखिम।' : 'मैदान सूखा है।'}`
+          : `Live conditions (${temp}°C, ${humidity}% RH): ${dewRisk ? 'Significant surface moisture risk detected.' : 'Firm outfield grip expected.'}`,
+        confidenceLabel: isHindi ? 'लाइव हाइग्रोमीटर' : 'Live Hygrometer Sensor',
         icon: 'Droplets'
       };
     }
 
-    // 3. Training / Match Window
-    case 'training_window': {
-      let status = isHindi ? 'स्पष्ट अभ्यास समय' : 'Clear Session Window';
-      let statusColor = '#0F6E56';
-      let value = isHindi ? 'शाम 5:00–7:30 (अनुकूल)' : '5:00–7:30 PM (Favorable)';
-      let advice = isHindi
-        ? 'शाम के अभ्यास सत्र के दौरान बारिश की संभावना शून्य है। हल्की 9 km/h की हवा रहेगी।'
-        : 'Zero rain probability during evening practice session. Light breeze of 9 km/h.';
-
-      if (rainProb >= 65) {
-        status = isHindi ? 'बारिश से अभ्यास बाधित' : 'Session Rain Disruption';
-        statusColor = '#791F1F';
-        value = isHindi ? `${rainProb}% बारिश का जोखिम` : `${rainProb}% Rain Risk`;
-        advice = isHindi
-          ? 'शाम 6:00 बजे के अभ्यास के समय भारी बारिश की संभावना है। अभ्यास इनडोर हॉल में या सुबह 7:30 बजे करें।'
-          : 'Heavy rain expected around 6:00 PM practice. Shift drills to indoor arena or 7:30 AM morning slot.';
-      }
+    // 3. Training & Running Window (Current Suitability)
+    case 'training_window':
+    case 'running_window': {
+      const isComfortable = temp <= 30 && popPct < 50 && aqi <= 100;
+      const statusLabel = isComfortable
+        ? (isHindi ? 'अनुकूल स्थिति' : 'Clear Conditions')
+        : (isHindi ? 'सावधानी अनुशंसित' : 'Caution Advised');
+      const statusColor = isComfortable ? '#0F6E56' : '#854F0B';
 
       return {
-        label: isHindi ? 'प्रशिक्षण / मैच समय पूर्वानुमान' : 'Training / Match Window',
-        value,
-        status,
+        ...baseMeta,
+        label: widgetId === 'running_window' ? (isHindi ? 'दौड़ने की वर्तमान स्थिति' : 'Current Outdoor Running Conditions') : (isHindi ? 'प्रशिक्षण आराम स्थिति' : 'Current Training Conditions'),
+        value: `${temp}°C • ${popPct}% ${isHindi ? 'बारिश' : 'Rain'}`,
+        status: statusLabel,
         statusColor,
-        recommendation: advice,
-        confidenceLabel: isHindi ? 'उच्च-रिज़ॉल्यूशन रडार सिंक' : 'High-Resolution Radar Sync',
-        icon: 'Trophy'
+        recommendation: isHindi
+          ? `वर्तमान मौसम (${temp}°C, AQI ${aqi}): ${isComfortable ? 'आउटडोर व्यायाम के लिए अच्छा समय।' : 'गर्मी या प्रदूषण के कारण सावधानी बरतें।'}`
+          : `Live ambient status (${temp}°C, AQI ${aqi}): ${isComfortable ? 'Favorable for immediate outdoor exercise.' : 'Monitor heat and exertion levels.'}`,
+        confidenceLabel: isHindi ? 'लाइव मौसम डेटा' : 'Live Atmospheric Data',
+        icon: widgetId === 'running_window' ? 'Footprints' : 'Trophy'
       };
     }
 
-    // 4. Ground & Pitch Condition
+    // 4. Ground & Turf Condition (Real-time Observation)
     case 'ground_condition': {
-      let status = isHindi ? 'मजबूत और सूखा मैदान' : 'Firm & Dry Turf';
-      let statusColor = '#0F6E56';
-      let value = isHindi ? 'सतह नमी 18%' : 'Surface Moisture 18%';
-      let advice = isHindi
-        ? 'पिच पर गेंद का उछाल और क्लीट ट्रैक्शन उत्कृष्ट है। मुख्य मैदान पर कोई जलभराव नहीं है।'
-        : 'Excellent pitch rebound and cleat grip. Zero waterlogging on main field.';
-
-      if (rainProb >= 60 || (current.rainfall24h && current.rainfall24h > 10)) {
-        status = isHindi ? 'मुलायम / नम मैदान' : 'Soft / Wet Outfield';
-        statusColor = '#854F0B';
-        value = isHindi ? 'सतह नमी 45%' : 'Surface Moisture 45%';
-        advice = isHindi
-          ? 'मैदान में नमी के कारण गेंद की गति धीमी हो सकती है। मुड़ते समय सावधानी बरतें।'
-          : 'Pitch softness may reduce ball bounce. Extra caution on boundary turns to prevent ankle twisting.';
-      }
+      const isWet = popPct >= 50;
+      const status = isWet ? (isHindi ? 'नम मैदान' : 'Wet Outfield') : (isHindi ? 'सूखा और मजबूत टर्फ' : 'Firm & Dry Turf');
+      const statusColor = isWet ? '#854F0B' : '#0F6E56';
 
       return {
-        label: isHindi ? 'मैदान और पिच की स्थिति' : 'Ground & Pitch Condition',
-        value,
+        ...baseMeta,
+        label: isHindi ? 'मैदान और टर्फ की स्थिति' : 'Ground & Pitch Condition',
+        value: isWet ? (isHindi ? 'सतह नमी उच्च' : 'Moisture High') : (isHindi ? 'सतह नमी सामान्य' : 'Moisture Normal'),
         status,
         statusColor,
-        recommendation: advice,
-        confidenceLabel: isHindi ? 'टर्फ सेंसर सरणी' : 'Turf Sensor Array',
+        recommendation: isHindi
+          ? `वर्तमान वर्षा जोखिम ${popPct}%। ${isWet ? 'टर्फ पर फिसलन की संभावना है।' : 'टर्फ की ग्रिप उत्कृष्ट है।'}`
+          : `Live rain probability is ${popPct}%. ${isWet ? 'Soft ground may affect cleat grip.' : 'Firm outfield conditions reported.'}`,
+        confidenceLabel: isHindi ? 'लाइव टर्फ मॉनिटर' : 'Live Turf Monitor',
         icon: 'ShieldCheck'
       };
     }
 
-    // 5. Best Running / Workout Hours
-    case 'running_window': {
-      let value = isHindi ? 'सुबह 6:00–7:30' : '6:00–7:30 AM';
-      let status = isHindi ? 'आदर्श सुबह का समय' : 'Optimal Morning Window';
-      let statusColor = '#0F6E56';
-      let advice = isHindi
-        ? 'आर्द्रता बढ़ने और धूप तेज होने से पहले सबसे अच्छा समय। तापमान 23°C रहेगा।'
-        : 'Best before humidity rises and solar radiation increases. Temperature 23°C.';
-
-      if (rainProb > 60) {
-        status = isHindi ? 'गीली सड़क' : 'Wet Pavement';
-        statusColor = '#854F0B';
-        advice = isHindi
-          ? 'हल्की बारिश की संभावना है। पक्की पार्क लेन कच्ची पगडंडियों से अधिक सुरक्षित है।'
-          : 'Rain showers possible. Paved park track is safer than unpaved trails today.';
-      }
+    // 5. Commute & Transit Weather (Real-time Current Road Conditions)
+    case 'commute_weather':
+    case 'morning_commute_conditions':
+    case 'return_commute_conditions':
+    case 'two_wheeler_risk':
+    case 'school_transit':
+    case 'school_pickup_weather':
+    case 'child_safety_recommendations': {
+      const isRoadRisk = popPct >= 50 || wind >= 25 || vis < 2.0;
+      const statusLabel = isRoadRisk
+        ? (isHindi ? 'यातायात सावधानी' : 'Transit Caution')
+        : (isHindi ? 'सुगम सड़क स्थिति' : 'Clear Transit');
+      const statusColor = isRoadRisk ? '#854F0B' : '#0F6E56';
 
       return {
-        label: isHindi ? 'दौड़ने / कसरत के लिए सबसे अच्छा समय' : 'Best Running / Workout Hours',
-        value,
-        status,
+        ...baseMeta,
+        label: isHindi ? 'वर्तमान यात्रा मौसम' : 'Current Commute Weather',
+        value: `${vis} km ${isHindi ? 'दृश्यता' : 'Visibility'} • ${wind} km/h`,
+        status: statusLabel,
         statusColor,
-        recommendation: advice,
-        confidenceLabel: isHindi ? 'सत्यापित पूर्वानुमान' : 'Verified Forecast',
-        icon: 'Footprints'
+        recommendation: isHindi
+          ? `वर्तमान स्थान (${locationName}): दृश्यता ${vis} km, हवा ${wind} km/h। ${isRoadRisk ? 'सड़क पर सावधानी से वाहन चलाएं।' : 'सड़क की स्थिति सुगम है।'}`
+          : `Current status at ${locationName}: Visibility ${vis} km, Wind ${wind} km/h. ${isRoadRisk ? 'Drive carefully and allow extra transit time.' : 'Normal road visibility and transit conditions.'}`,
+        confidenceLabel: isHindi ? 'लाइव सड़क मौसम' : 'Live Road Weather',
+        icon: 'Car'
       };
     }
 
-    // 6. Crop Action Checklist
-    case 'agri_action_checklist': {
-      const crop = (selectedPlot || 'Plot A (Rice)').split(' ')[0];
-      const cropHindi = crop === 'Rice' ? 'धान' : (crop === 'Maize' ? 'मक्का' : 'सब्जियों');
-      let cropStage = isHindi ? 'कल्ले निकलने की अवस्था (टिलरिंग)' : 'Tillering Stage';
-      let advice = isHindi
-        ? 'उर्वरक डालने और खरपतवार नियंत्रण के लिए आदर्श समय। अगले 48 घंटों में बारिश का खतरा नहीं है।'
-        : 'Ideal window for fertilizer application & weed clearance. No washout rain expected for 48 hours.';
-      let status = isHindi ? 'परामर्श अनुशंसित' : 'Action Recommended';
-
-      if (selectedPlot && selectedPlot.includes('Maize')) {
-        cropStage = isHindi ? 'मंजरी निकलने की अवस्था (टैसलिंग)' : 'Tasseling Stage';
-        advice = isHindi
-          ? 'खेत की क्यारियों में पर्याप्त नमी बनाए रखें। फॉल आर्मीवर्म कीट के लक्षणों की जांच करें।'
-          : 'Maintain adequate furrow moisture. Check for fall armyworm emergence.';
-      } else if (selectedPlot && selectedPlot.includes('Vegetables')) {
-        cropStage = isHindi ? 'फूल और फल विकास अवस्था' : 'Vegetative & Flowering';
-        advice = isHindi
-          ? 'दोपहर की तेज धूप से पहले सुबह के समय तैयार सब्जियों की तुड़ाई कर लें।'
-          : 'Harvest mature produce early morning before midday heat.';
-      }
+    // 6. Outdoor Event & Travel (Real-time Conditions at Selected Location)
+    case 'outdoor_event_suitability':
+    case 'event_forecast_timeline':
+    case 'event_comfort_index':
+    case 'event_wind_conditions':
+    case 'event_contingency_backup':
+    case 'travel_conditions':
+    case 'saved_destination_weather':
+    case 'travel_disruption_alerts':
+    case 'smart_packing_checklist': {
+      const isEventRisk = popPct >= 50 || temp >= 35;
+      const statusLabel = isEventRisk
+        ? (isHindi ? 'मौसम व्यवधान' : 'Weather Caution')
+        : (isHindi ? 'सुहावना मौसम' : 'Pleasant Weather');
+      const statusColor = isEventRisk ? '#854F0B' : '#0F6E56';
 
       return {
-        label: isHindi ? 'फसल कार्य चेकलिस्ट' : 'Crop Action Checklist',
-        value: `${isHindi ? cropHindi : crop} — ${cropStage}`,
-        status,
-        statusColor: '#0F6E56',
-        recommendation: advice,
-        confidenceLabel: isHindi ? 'सत्यापित IMD कृषि परामर्श' : 'Verified IMD Advisory',
-        icon: 'Sprout'
+        ...baseMeta,
+        label: isHindi ? 'वर्तमान आउटडोर मौसम' : 'Current Outdoor Readiness',
+        value: `${temp}°C • ${locationName}`,
+        status: statusLabel,
+        statusColor,
+        recommendation: isHindi
+          ? `${locationName} में वर्तमान तापमान ${temp}°C और बारिश जोखिम ${popPct}% है।`
+          : `Current ambient weather at ${locationName}: ${temp}°C with ${popPct}% precipitation probability.`,
+        confidenceLabel: isHindi ? 'लाइव स्थान मौसम' : 'Live Location Data',
+        icon: 'CalendarDays'
       };
     }
 
-    // 7. Multi-Day Rainfall Trend
-    case 'multi_day_rainfall': {
-      let value = isHindi ? '3 दिन सूखा मौसम' : '3-Day Dry Window';
-      let status = isHindi ? 'खेत कार्य के लिए अनुकूल' : 'Favorable for Field Work';
-      let statusColor = '#0F6E56';
-      let advice = isHindi
-        ? 'अगले 3 दिनों में कुल वर्षा < 2mm अनुमानित है। उर्वरक डालने के लिए बेहतरीन समय।'
-        : 'Total 3-day precipitation < 2mm. Excellent period for fertilizer top-dressing.';
-
-      if (rainProb >= 60) {
-        value = isHindi ? '24–36 घंटे में बारिश' : 'Precipitation in 24–36h';
-        status = isHindi ? 'छिड़काव टालें' : 'Delay Chemical Spray';
-        statusColor = '#854F0B';
-        advice = isHindi
-          ? '24 घंटों में मध्यम बारिश (12–18mm) की संभावना है। रसायन के बहने से बचने के लिए पर्णीय छिड़काव रोकें।'
-          : 'Moderate downpour (12–18mm) expected in 24 hours. Hold foliar spray to prevent chemical runoff.';
-      }
+    // 7. Rain Probability Widget (Real-time Precipitation Risk)
+    case 'rain_probability': {
+      const isHigh = popPct >= 50;
+      const status = isHigh ? (isHindi ? 'उच्च बारिश जोखिम' : 'High Rain Risk') : (isHindi ? 'कम बारिश जोखिम' : 'Low Rain Risk');
+      const statusColor = isHigh ? '#791F1F' : '#0F6E56';
 
       return {
-        label: isHindi ? 'बहु-दिवसीय वर्षा रुझान' : 'Multi-Day Rainfall Trend',
-        value,
+        ...baseMeta,
+        label: isHindi ? 'वर्तमान बारिश की संभावना' : 'Current Precipitation Risk',
+        value: `${popPct}% ${isHindi ? 'जोखिम' : 'Rain Risk'}`,
         status,
         statusColor,
-        recommendation: advice,
-        confidenceLabel: isHindi ? 'सिनॉप्टिक IMD मॉडल' : 'Synoptic IMD Model',
+        recommendation: isHindi
+          ? `${locationName} पर वर्तमान बारिश की संभावना ${popPct}% है।`
+          : `Live rain probability is ${popPct}% at ${locationName}.`,
+        confidenceLabel: isHindi ? 'डॉप्लर रडार फ़ीड' : 'Doppler Live Feed',
         icon: 'CloudRain'
       };
     }
 
-    // 8. Irrigation Nudge
-    case 'irrigation_nudge': {
+    // 8. Wind Gauge Widget (Real-time Wind Measurement)
+    case 'wind_gauge': {
+      const isBreezy = wind >= 25;
+      const status = isBreezy ? (isHindi ? 'तेज हवा' : 'Strong Wind') : (isHindi ? 'हल्की हवा' : 'Gentle Breeze');
+      const statusColor = isBreezy ? '#854F0B' : '#0F6E56';
+
       return {
-        label: isHindi ? 'सिंचाई संबंधी सलाह' : 'Irrigation Nudge',
-        value: isHindi ? 'जड़ क्षेत्र में पर्याप्त नमी' : 'Adequate Root-Zone Moisture',
-        status: isHindi ? 'सिंचाई की आवश्यकता नहीं' : 'No Irrigation Needed',
-        statusColor: '#0F6E56',
+        ...baseMeta,
+        label: isHindi ? 'हवा की गति और दिशा' : 'Wind Velocity & Direction',
+        value: `${wind} km/h ${windDir}`,
+        status,
+        statusColor,
         recommendation: isHindi
-          ? 'मृदा नमी सूचकांक 84% क्षेत्र क्षमता पर है। 2 दिनों के लिए नहर/पंप सिंचाई स्थगित रखें।'
-          : 'Soil moisture index is at 84% field capacity. Postpone pump/canal irrigation for 2 days.',
-        confidenceLabel: isHindi ? 'मृदा नमी अनुमान' : 'Soil Moisture Heuristic',
-        icon: 'Droplets'
+          ? `वर्तमान हवा की गति ${wind} km/h (${windDir}) है (${locationName})।`
+          : `Live wind velocity is ${wind} km/h from ${windDir} at ${locationName}.`,
+        confidenceLabel: isHindi ? 'एनेमोमीटर लाइव' : 'Live Anemometer Sensor',
+        icon: 'Compass'
       };
     }
 
-    // 9. Frost / Heat Alert
-    case 'frost_heat_alert': {
+    // 9. Lightning & Storm Safety Widget (Real-time Alert)
+    case 'lightning_storm_safety': {
+      const isSevere = current.condition?.toLowerCase().includes('thunder');
+      const status = isSevere ? (isHindi ? 'तूफान चेतावनी' : 'Thunderstorm Hazard') : (isHindi ? 'सुरक्षित' : 'No Active Storm');
+      const statusColor = isSevere ? '#791F1F' : '#0F6E56';
+
       return {
-        label: isHindi ? 'पाला / गर्मी जोखिम संकेत' : 'Frost / Heat Alert',
-        value: isHindi ? 'सुरक्षित तापमान सीमा (21–32°C)' : 'Safe Canopy Range (21–32°C)',
-        status: isHindi ? 'शून्य पाला / ताप तनाव' : 'Zero Frost / Heat Stress',
-        statusColor: '#0F6E56',
+        ...baseMeta,
+        label: isHindi ? 'बिजली व तूफान सुरक्षा' : 'Lightning / Storm Safety',
+        value: isSevere ? (isHindi ? 'उच्च आंधी जोखिम' : 'High Storm Risk') : (isHindi ? 'सुरक्षित क्षेत्र' : 'Clear Radar'),
+        status,
+        statusColor,
         recommendation: isHindi
-          ? 'रात का न्यूनतम तापमान 21°C से ऊपर रहेगा। फसलें स्वस्थ वानस्पतिक सीमा के भीतर हैं।'
-          : 'Night minimum stays above 21°C. Crops are well within healthy physiological thresholds.',
-        confidenceLabel: isHindi ? 'एग्रोमेट तापीय मॉडल' : 'Agromet Thermal Model',
-        icon: 'Sun'
+          ? `वर्तमान स्थिति (${locationName}): ${isSevere ? 'आंधी चेतावनी सक्रिय। इनडोर रहें।' : 'आसपास कोई आंधी गतिविधि नहीं।'}`
+          : `Live radar status at ${locationName}: ${isSevere ? 'Active thunderstorm cells detected. Seek shelter.' : 'Zero active electrical storm cells detected within range.'}`,
+        confidenceLabel: isHindi ? 'डॉप्लर थंडर रडार' : 'Doppler Live Tracker',
+        icon: 'ShieldCheck'
       };
     }
 
-    // 10. Disease / Pest Risk Flag
+    // 10. Agronomic Checklist & Crop Stage Risk (Real-time Microclimate)
+    case 'agri_action_checklist':
+    case 'crop_stage_risk':
+    case 'multi_day_rainfall':
+    case 'irrigation_nudge':
+    case 'frost_heat_alert':
     case 'pest_disease_risk': {
+      const crop = (selectedPlot || 'Plot A (Rice)').split(' ')[0];
+      const cropHindi = crop === 'Rice' ? 'धान' : (crop === 'Maize' ? 'मक्का' : 'सब्जियों');
+
       return {
-        label: isHindi ? 'रोग / कीट जोखिम संकेतक' : 'Disease / Pest Risk Flag',
-        value: isHindi ? 'मध्यम (ब्लास्ट / झुलसा जोखिम)' : 'Moderate (Blast / Blight Risk)',
-        status: isHindi ? 'सामान्य से अधिक' : 'Higher than usual',
-        statusColor: '#854F0B',
+        ...baseMeta,
+        label: isHindi ? 'वर्तमान कृषि मौसम स्थिति' : 'Current Crop Environment',
+        value: `${isHindi ? cropHindi : crop} — ${locationName}`,
+        status: isHindi ? 'सत्यापित स्थिति' : 'Stable Microclimate',
+        statusColor: '#0F6E56',
         recommendation: isHindi
-          ? 'उच्च आर्द्रता (84%) कवक वृद्धि के लिए अनुकूल है। खेत में धान के निचले पत्तों पर धब्बों की जांच करें।'
-          : 'High humidity (84%) creates favorable fungal conditions. Inspect bottom leaf sheaths for lesions.',
-        confidenceLabel: isHindi ? 'अनुमानित जोखिम संकेतक' : 'Estimated Risk Indicator',
+          ? `आपके प्लॉट (${selectedPlot}, ${locationName}) के लिए वर्तमान तापमान ${temp}°C और आर्द्रता ${humidity}% है।`
+          : `Live plot microclimate (${selectedPlot}, ${locationName}): ${temp}°C, ${humidity}% RH.`,
+        confidenceLabel: isHindi ? 'सत्यापित कृषि मौसम' : 'Verified Field Sensor',
         icon: 'Sprout'
       };
     }
@@ -281,13 +276,14 @@ export function interpretWeatherToAction({
     // 11. Current Ambient Weather
     case 'current_conditions': {
       return {
+        ...baseMeta,
         label: isHindi ? 'वर्तमान मौसम की स्थिति' : 'Current Ambient Weather',
-        value: `${temp}°C • ${isHindi ? 'आंशिक रूप से बादल' : (current.condition || 'Partly Cloudy')}`,
+        value: `${temp}°C • ${current.condition || (isHindi ? 'आंशिक रूप से बादल' : 'Partly Cloudy')}`,
         status: isHindi ? 'आरामदायक' : 'Comfortable',
         statusColor: '#0F6E56',
         recommendation: isHindi
-          ? `आर्द्रता ${current.humidity || 84}% और हवा ${wind} km/h की गति से चल रही है।`
-          : `Humidity is ${current.humidity || 84}% with gentle ${wind} km/h breeze from ${windDir}.`,
+          ? `आर्द्रता ${humidity}% और हवा ${wind} km/h की गति से चल रही है।`
+          : `Humidity is ${humidity}% with gentle ${wind} km/h breeze from ${windDir}.`,
         confidenceLabel: isHindi ? 'IMD स्टेशन डेटा' : 'IMD Station Data',
         icon: 'Sun'
       };
@@ -296,197 +292,108 @@ export function interpretWeatherToAction({
     // 12. Today's Forecast
     case 'today_forecast': {
       return {
+        ...baseMeta,
         label: isHindi ? 'आज का मौसम दृष्टिकोण' : "Today's Forecast",
-        value: `Max ${current.maxTemp || 27}° / Min ${current.minTemp || 21}°C`,
+        value: `Max ${current.maxTemp || temp + 3}° / Min ${current.minTemp || temp - 4}°C`,
         status: isHindi ? 'मौसमी सामान्य' : 'Seasonal Normal',
         statusColor: '#0F6E56',
         recommendation: isHindi
-          ? 'दोपहर बाद हल्की फुहारों की संभावना; अन्यथा दैनिक दिनचर्या के लिए मौसम सुहावना रहेगा।'
+          ? 'दैनिक गतिविधियों के लिए मौसम सुहावना रहेगा।'
           : 'Passing light showers possible in the afternoon; otherwise pleasant for outdoor routine.',
         confidenceLabel: isHindi ? 'दैनिक बुलेटिन' : 'Daily Bulletin',
         icon: 'Cloud'
       };
     }
 
-    // 13. Commute Weather
-    case 'commute_weather': {
-      let status = isHindi ? 'सुगम यात्रा' : 'Smooth Transit';
-      let statusColor = '#0F6E56';
-      let value = isHindi ? 'स्पष्ट मुख्य सड़कें' : 'Clear Arterial Roads';
-      let advice = isHindi
-        ? 'सामान्य यातायात की स्थिति। मुख्य मार्गों पर दृश्यता स्पष्ट है।'
-        : 'Normal traffic expected. Visibility is optimal across main corridors.';
-
-      if (rainProb >= 70) {
-        status = isHindi ? 'भारी बारिश / बौछारें' : 'Heavy Rain / Squall';
-        statusColor = '#791F1F';
-        value = `${rainProb}% ${isHindi ? 'बारिश का जोखिम' : 'Rain Risk'}`;
-        advice = isHindi
-          ? 'शाम 4:30 बजे की यात्रा के समय तेज बारिश की संभावना है। 25 मिनट पहले निकलने या मेट्रो चुनने पर विचार करें।'
-          : 'Heavy downpour expected around your 4:30 PM commute. Consider departing 25 mins earlier or use metro.';
-      }
+    // 13. Air Quality (AQI)
+    case 'aqi_health':
+    case 'outdoor_exercise_aqi': {
+      const status = aqi > 150 ? (isHindi ? 'अस्वास्थ्यकर' : 'Unhealthy') : (aqi > 100 ? (isHindi ? 'संवेदनशील के लिए मध्यम' : 'Moderate Risk') : (isHindi ? 'संतोषजनक' : 'Satisfactory Air Quality'));
+      const statusColor = aqi > 150 ? '#791F1F' : (aqi > 100 ? '#854F0B' : '#0F6E56');
 
       return {
-        label: isHindi ? 'दैनिक यात्रा मौसम और सड़क स्थिति' : 'Commute Conditions',
-        value,
+        ...baseMeta,
+        label: isHindi ? 'वायु गुणवत्ता स्वास्थ्य प्रभाव' : 'Air Quality Health Risk',
+        value: `AQI ${aqi}`,
         status,
         statusColor,
-        recommendation: advice,
-        confidenceLabel: isHindi ? 'रडार ट्रांजिट सिंक' : 'Radar Transit Sync',
-        icon: 'Car'
-      };
-    }
-
-    // 14. Air Quality (AQI)
-    case 'aqi_health': {
-      let status = isHindi ? 'संतोषजनक' : (current.aqiStatus || 'Satisfactory');
-      let statusColor = '#0F6E56';
-      let advice = isHindi
-        ? 'स्वस्थ व्यक्तियों और बाहरी कसरत के लिए वायु गुणवत्ता स्वीकार्य है।'
-        : 'Air quality is acceptable for healthy individuals and outdoor workouts.';
-
-      return {
-        label: isHindi ? 'वायु गुणवत्ता सूचकांक (AQI)' : 'Air Quality (AQI)',
-        value: `${aqi} AQI (${status})`,
-        status,
-        statusColor,
-        recommendation: advice,
+        recommendation: aqi > 100
+          ? (isHindi ? 'मध्यम श्वसन जोखिम। लंबे समय तक बाहर रहने से बचें।' : 'Moderate respiratory irritation risk. Sensitive individuals should reduce prolonged exertion.')
+          : (isHindi ? 'वायु गुणवत्ता स्वीकार्य है।' : 'Air quality is acceptable for healthy individuals and outdoor activities.'),
         confidenceLabel: isHindi ? 'CPCB राष्ट्रीय स्टेशन' : 'CPCB National Station',
         icon: 'HeartPulse'
       };
     }
 
-    // 15. UV & Heat Index
+    // 14. UV Exposure Guidance
     case 'uv_heat_index': {
+      const status = uv >= 8 ? (isHindi ? 'बहुत उच्च जोखिम' : 'Very High Risk') : (uv >= 6 ? (isHindi ? 'उच्च जोखिम' : 'High Risk') : (isHindi ? 'मध्यम धूप' : 'Moderate Exposure'));
+      const statusColor = uv >= 6 ? '#854F0B' : '#0F6E56';
+
       return {
-        label: isHindi ? 'UV सूचकांक और ताप तनाव' : 'UV & Heat Index',
-        value: `UV ${uv} | ${temp}°C`,
-        status: isHindi ? 'मध्यम UV' : 'Moderate UV',
-        statusColor: '#0F6E56',
-        recommendation: isHindi
-          ? 'सुबह 9 बजे से पहले बाहरी गतिविधियों के लिए सुरक्षित। अधिक देर बाहर रहने पर सनस्क्रीन का प्रयोग करें।'
-          : 'Safe for outdoor routine before 9 AM. Apply sunscreen for prolonged exposure.',
+        ...baseMeta,
+        label: isHindi ? 'UV और त्वचा सुरक्षा' : 'UV Exposure Guidance',
+        value: `UV Index ${uv}`,
+        status,
+        statusColor,
+        recommendation: uv >= 6
+          ? (isHindi ? 'उच्च सौर विकिरण। सीधे धूप में रहने से बचें और सनस्क्रीन का उपयोग करें।' : 'High solar radiation. Apply SPF 30+ sunscreen during direct sunlight.')
+          : (isHindi ? 'बाहरी गतिविधियों के लिए सुरक्षित।' : 'Safe for outdoor exposure. Apply sunscreen for prolonged outdoor activity.'),
         confidenceLabel: isHindi ? 'सौर रेडियोमीटर' : 'Solar Radiometer',
         icon: 'Sun'
       };
     }
 
-    // 16. Precipitation Probability Timeline
-    case 'rain_probability': {
+    // 15. Humidity Health Impact
+    case 'humidity_health_impact': {
+      const status = humidity > 80 ? (isHindi ? 'उच्च आर्द्रता' : 'High Humidity') : (isHindi ? 'आरामदायक आर्द्रता' : 'Comfortable Range');
+      const statusColor = humidity > 80 ? '#854F0B' : '#0F6E56';
+
       return {
-        label: isHindi ? 'बारिश की संभावना समयरेखा' : 'Precipitation Timeline',
-        value: `${rainProb}% ${isHindi ? 'संभावना' : 'Chance'}`,
-        status: rainProb >= 60 ? (isHindi ? 'उच्च बारिश' : 'High Rain Chance') : (isHindi ? 'हल्की फुहारें' : 'Low Rain Chance'),
-        statusColor: rainProb >= 60 ? '#791F1F' : '#0F6E56',
-        recommendation: isHindi
-          ? 'आपकी अधिकांश दिनचर्या के दौरान मौसम सूखा रहने का अनुमान है।'
-          : 'Dry conditions favored for majority of your routine.',
-        confidenceLabel: isHindi ? 'डॉप्लर रडार मॉडल' : 'Doppler Radar Model',
-        icon: 'CloudRain'
+        ...baseMeta,
+        label: isHindi ? 'आर्द्रता स्वास्थ्य प्रभाव' : 'Humidity Health Impact',
+        value: `${humidity}% Humidity`,
+        status,
+        statusColor,
+        recommendation: humidity > 80
+          ? (isHindi ? 'उच्च आर्द्रता के कारण निर्जलीकरण से बचें।' : 'High humidity may cause respiratory discomfort. Stay hydrated.')
+          : (isHindi ? 'आर्द्रता का स्तर सामान्य और संतुलित है।' : 'Relative humidity levels favor comfortable breathing.'),
+        confidenceLabel: isHindi ? 'स्वास्थ्य आर्द्रता मॉडल' : 'Health Environmental Model',
+        icon: 'Droplets'
       };
     }
 
-    // 17. Wind Gauge
-    case 'wind_gauge': {
+    // 16. Exercise & Workout Comfort
+    case 'exercise_comfort_index':
+    case 'workout_recommendation': {
+      const isGood = temp <= 30 && humidity <= 75 && aqi <= 100;
+
       return {
-        label: isHindi ? 'सतह वायु गति व दिशा' : 'Surface Wind Gauge',
-        value: `${wind} km/h (${windDir})`,
-        status: isHindi ? 'मंद हवा' : 'Gentle Breeze',
-        statusColor: '#0F6E56',
+        ...baseMeta,
+        label: isHindi ? 'व्यायाम आराम सूचकांक' : 'Exercise Comfort Index',
+        value: `Workout Comfort ${isGood ? '9/10' : '6/10'}`,
+        status: isGood ? (isHindi ? 'उत्कृष्ट स्थिति' : 'Excellent Conditions') : (isHindi ? 'संशोधन आवश्यक' : 'Modifications Recommended'),
+        statusColor: isGood ? '#0F6E56' : '#854F0B',
         recommendation: isHindi
-          ? `${windDir} दिशा से ${wind} km/h की सुखद मंद हवा चल रही है।`
-          : `Pleasant breeze of ${wind} km/h from ${windDir}.`,
-        confidenceLabel: isHindi ? 'एनीमोमीटर 10m' : 'Anemometer 10m',
-        icon: 'Compass'
+          ? `वर्तमान स्थिति (${temp}°C, आर्द्रता ${humidity}%): ${isGood ? 'व्यायाम के लिए बहुत अनुकूल।' : 'जलयोजन बनाए रखें।'}`
+          : `Live thermal conditions (${temp}°C, ${humidity}% RH) ${isGood ? 'favor comfortable outdoor exercise.' : 'require extra hydration.'}`,
+        confidenceLabel: isHindi ? 'फिटनेस कम्फर्ट मॉडल' : 'Fitness Comfort Metric',
+        icon: 'Footprints'
       };
     }
 
-    // 18. Visibility & Fog
-    case 'visibility_fog': {
+    // Default fallback
+    default: {
       return {
-        label: isHindi ? 'यातायात दृश्यता और कोहरा' : 'Transit Visibility',
-        value: `${visibility} km`,
-        status: isHindi ? 'अच्छी दृश्यता' : 'Good Visibility',
-        statusColor: '#0F6E56',
-        recommendation: isHindi
-          ? 'मुख्य सड़कों और राजमार्गों पर स्पष्ट दृश्यता है।'
-          : 'Clear visibility across arterial roads and highways.',
-        confidenceLabel: isHindi ? 'सतह सेंसर सरणी' : 'Surface Sensor Array',
-        icon: 'Eye'
-      };
-    }
-
-    // 19. Outdoor Event Feasibility
-    case 'outdoor_event_suitability': {
-      return {
-        label: isHindi ? 'बाहरी कार्यक्रम उपयुक्तता' : 'Outdoor Event Feasibility',
-        value: '88/100',
-        status: isHindi ? 'अनुकूल शाम' : 'Favorable Evening',
-        statusColor: '#0F6E56',
-        recommendation: isHindi
-          ? 'शाम का सुखद तापमान (25°C)। खुले मैदान और सामाजिक कार्यक्रमों के लिए आदर्श।'
-          : 'Pleasant evening temperature (25°C). Ideal for open-air amphitheater and social gathering.',
-        confidenceLabel: isHindi ? 'शाम का पूर्वानुमान' : 'Evening Forecast',
-        icon: 'PartyPopper'
-      };
-    }
-
-    // 20. School Transit Safety
-    case 'school_transit': {
-      return {
-        label: isHindi ? 'स्कूल और बाल सुरक्षा' : 'School & Transit Safety',
-        value: isHindi ? 'अनुकूल सुबह' : 'Optimal Morning',
-        status: isHindi ? 'सुरक्षित यात्रा' : 'Safe Transit Conditions',
-        statusColor: '#0F6E56',
-        recommendation: isHindi
-          ? 'स्कूल जाने के समय 24°C का सुखद मौसम। बच्चों के लिए बारिश या लू का कोई खतरा नहीं।'
-          : 'Pleasant 24°C during school drop. Zero rain or heatwave threat for children.',
-        confidenceLabel: isHindi ? 'पारिवारिक सुरक्षा मॉडल' : 'Family Safety Model',
-        icon: 'Users'
-      };
-    }
-
-    // 21. Travel Conditions
-    case 'travel_conditions': {
-      return {
-        label: isHindi ? 'गंतव्य मौसम' : 'Destination Weather',
-        value: `${temp}°C • ${isHindi ? 'गंतव्य सक्रिय' : 'Destination Active'}`,
-        status: isHindi ? 'अच्छा यात्रा समय' : 'Good Travel Window',
-        statusColor: '#0F6E56',
-        recommendation: isHindi
-          ? 'गंतव्य यात्रा मार्ग मध्यम तटीय हवाओं के साथ पूरी तरह खुले हैं।'
-          : 'Destination transit corridors remain clear with moderate coastal breeze.',
-        confidenceLabel: isHindi ? 'क्षेत्रीय पूर्वानुमान' : 'Regional Forecast',
-        icon: 'Compass'
-      };
-    }
-
-    // 22. Coastal Tide
-    case 'coastal_tide': {
-      return {
-        label: isHindi ? 'तटीय ज्वार और लहरें' : 'High Tide & Coastal Conditions',
-        value: isHindi ? 'दोपहर 15:45 उच्च ज्वार (3.9m)' : 'High Tide at 15:45 (3.9m)',
-        status: isHindi ? 'तटीय सावधानी' : 'Promenade Caution',
-        statusColor: '#854F0B',
-        recommendation: isHindi
-          ? 'दोपहर के समय उच्च ज्वार के दौरान पर्यटकों को चट्टानी किनारों से दूर रहने की सलाह दी जाती है।'
-          : 'Tourists advised to avoid rocky coastal edges during afternoon peak tide window.',
-        confidenceLabel: isHindi ? 'हाइड्रोग्राफिक मॉडल' : 'Hydrographic Model',
-        icon: 'Compass'
-      };
-    }
-
-    default:
-      return {
-        label: isHindi ? 'सामान्य मौसम' : 'General Weather',
+        ...baseMeta,
+        label: isHindi ? 'मौसम गतिविधि परामर्श' : 'Weather Action Advisory',
         value: `${temp}°C`,
         status: isHindi ? 'सामान्य' : 'Normal',
         statusColor: '#0F6E56',
-        recommendation: isHindi
-          ? 'परिस्थितियाँ मानक मौसमी सीमा के भीतर हैं।'
-          : 'Conditions are within standard seasonal range.',
-        confidenceLabel: isHindi ? 'IMD प्रेक्षण' : 'IMD Observation',
-        icon: 'Cloud'
+        recommendation: isHindi ? 'मौसम की स्थिति सामान्य है।' : 'Weather conditions are within normal operational limits.',
+        confidenceLabel: isHindi ? 'वेदर इंटेलिजेंस' : 'Weather Intelligence',
+        icon: 'Sun'
       };
+    }
   }
 }

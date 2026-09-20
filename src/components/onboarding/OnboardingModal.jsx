@@ -6,7 +6,7 @@ import {
   ArrowLeft 
 } from 'lucide-react';
 import { PERSONAS } from '../../data/personaDefinitions';
-import { LOCATIONS } from '../../data/mockWeatherData';
+import { PREDEFINED_LOCATIONS } from '../../data/locationsData';
 
 export default function OnboardingModal({ isOpen, onComplete }) {
   if (!isOpen) return null;
@@ -66,7 +66,7 @@ export default function OnboardingModal({ isOpen, onComplete }) {
                 Select your primary location. You can assign different purposes (Home, Farm, Office, Travel) to each saved place.
               </p>
               <div className="space-y-2">
-                {LOCATIONS.map(loc => (
+                {PREDEFINED_LOCATIONS.map(loc => (
                   <button
                     key={loc.id}
                     onClick={() => setSelectedLocationId(loc.id)}

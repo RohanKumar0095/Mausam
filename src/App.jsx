@@ -8,8 +8,10 @@ import RoutineEditorModal from './components/routine/RoutineEditorModal';
 import LocationSelector from './components/locations/LocationSelector';
 import OnboardingModal from './components/onboarding/OnboardingModal';
 import ProfileModal from './components/profile/ProfileModal';
+import RouteWeatherDetailModal from './components/routine/RouteWeatherDetailModal';
 import MausamAssistant from './chatbot/MausamAssistant';
 import { useI18n } from './i18n/i18nContext';
+import { parseTime } from './utils/timeUtils';
 
 // Auth & Onboarding Flow Screens
 import WelcomeScreen from './auth/WelcomeScreen';
@@ -30,16 +32,23 @@ import AlertsView from './components/views/AlertsView';
 import LocationsView from './components/views/LocationsView';
 import RadarMapView from './components/views/RadarMapView';
 
-import { LOCATIONS } from './data/mockWeatherData';
+import { PREDEFINED_LOCATIONS } from './data/locationsData';
 import { PRESET_PROFILES } from './data/presetProfiles';
 import { DEFAULT_ROUTINE } from './data/routineData';
 import { customLocationStore } from './data/customLocationStore';
+import { useWeatherData } from './hooks/useWeatherData';
+import { normalizeWeatherResponse } from './services/weatherNormalizer';
 import { getRankedWidgets } from './engine/personalizationEngine';
+import { evaluateSharedWeatherIntelligence } from './engine/sharedWeatherIntelligence';
 import { generateDailyBriefing } from './engine/briefingEngine';
 import { generateContextualNudge } from './engine/nudgeEngine';
 import { evaluateSafetyOverride } from './engine/safetyOverrideSystem';
-import { derivePersonasFromPreferences } from './engine/personaDerivationEngine';
+import { derivePersonasFromPreferences, getStep1Personas } from './engine/personaDerivationEngine';
 import { authService } from './auth/authService';
+import { useTimeContext } from './hooks/useTimeContext';
+import { alertIntelligenceService } from './services/alertIntelligenceService';
+import AlertDetailModal from './components/alerts/AlertDetailModal';
+import AlertCenterModal from './components/alerts/AlertCenterModal';
 
 export default function App() {
   const { language, setLanguage } = useI18n();
@@ -51,14 +60,23 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(() => authService.getCurrentUser());
   const [currentLanguage, setCurrentLanguage] = useState(() => authService.getLanguage());
   const [signupContact, setSignupContact] = useState('');
-  const [collectedPreferences, setCollectedPreferences] = useState(null);
-  const [derivedPersonas, setDerivedPersonas] = useState(['daily_life']);
+  const [collectedPreferences, setCollectedPreferences] = useState(() => authService.getSavedPreferences());
+  const [derivedPersonas, setDerivedPersonas] = useState(() => getStep1Personas());
+
+  // Authoritative Time Context
+  const liveTimeContext = useTimeContext();
+  const [simulatedTime, setSimulatedTime] = useState(null);
+  const activeCurrentTime = simulatedTime || liveTimeContext.time12h;
+
+  // Alert Intelligence State
+  const [alerts, setAlerts] = useState([]);
+  const [selectedAlert, setSelectedAlert] = useState(null);
+  const [isAlertCenterOpen, setIsAlertCenterOpen] = useState(false);
 
   // Main Weather App State
   const [activeTab, setActiveTab] = useState('home');
-  const [currentLocationId, setCurrentLocationId] = useState('loc-gaya');
-  const [selectedPersonas, setSelectedPersonas] = useState(['daily_life']);
-  const [currentTime, setCurrentTime] = useState('06:30');
+  const [currentLocationId, setCurrentLocationId] = useState(() => customLocationStore.getAllLocations()[0]?.id || 'user-primary-location');
+  const [selectedPersonas, setSelectedPersonas] = useState(() => getStep1Personas());
   const [routine, setRoutine] = useState(DEFAULT_ROUTINE);
   const [activeProfileId, setActiveProfileId] = useState('daily_life');
   const [selectedPlot, setSelectedPlot] = useState('Plot A (Rice)');
@@ -72,6 +90,7 @@ export default function App() {
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isChatbotOpen, setIsChatbotOpen] = useState(false);
+  const [selectedRouteActivity, setSelectedRouteActivity] = useState(null);
   const [explainingWidget, setExplainingWidget] = useState(null);
   const [dismissedNudgeId, setDismissedNudgeId] = useState(null);
 
@@ -79,15 +98,23 @@ export default function App() {
   useEffect(() => {
     const user = authService.getCurrentUser();
     const auth = authService.getAuthState();
+    const savedPref = authService.getSavedPreferences();
     const savedPersonas = authService.getSavedPersonas();
     const savedRoutine = authService.getSavedRoutine();
 
-    if (savedPersonas && savedPersonas.length > 0) {
-      setSelectedPersonas(savedPersonas);
-      setDerivedPersonas(savedPersonas);
+    const activeStep1Personas = getStep1Personas(savedPref) || savedPersonas;
+
+    if (activeStep1Personas && activeStep1Personas.length > 0) {
+      setSelectedPersonas(activeStep1Personas);
+      setDerivedPersonas(activeStep1Personas);
     }
     if (savedRoutine && savedRoutine.length > 0) {
       setRoutine(savedRoutine);
+    }
+
+    const allLocs = customLocationStore.getAllLocations();
+    if (allLocs && allLocs.length > 0) {
+      setCurrentLocationId(prev => allLocs.some(l => l.id === prev) ? prev : allLocs[0].id);
     }
 
     if (auth.isAuthenticated && user && user.step === 'completed') {
@@ -96,56 +123,89 @@ export default function App() {
     }
   }, []);
 
-  // Current Weather Data for selected location (resolving from both preset and custom locations)
-  const weatherData = useMemo(() => {
+  // Selected Location metadata - Single Source of Truth from User Location Store
+  const selectedLocation = useMemo(() => {
     const all = customLocationStore.getAllLocations();
-    return all.find(l => l.id === currentLocationId) || LOCATIONS[0];
+    return all.find(l => l.id === currentLocationId) || all[0];
   }, [currentLocationId]);
 
-  // Determine current active activity based on time
+  // Live Weather API Hook
+  const {
+    weatherData: liveWeatherData,
+    isLoading: isWeatherLoading,
+    isError: isWeatherError,
+    errorInfo: weatherErrorInfo,
+    isUVLive,
+    refresh: refreshWeather
+  } = useWeatherData(selectedLocation);
+
+  // Normalized weather model - uses live API data if available, or location skeleton
+  const weatherData = useMemo(() => {
+    if (liveWeatherData) return liveWeatherData;
+    return normalizeWeatherResponse(null, selectedLocation);
+  }, [liveWeatherData, selectedLocation]);
+
+  // Determine current active activity based on time (null-safe if routine is empty)
   const currentActivity = useMemo(() => {
-    const [currH, currM] = currentTime.split(':').map(Number);
-    const currMin = (currH || 0) * 60 + (currM || 0);
+    if (!routine || routine.length === 0) return null;
+    const parsedNow = parseTime(activeCurrentTime);
+    const currMin = parsedNow.hour24 * 60 + parsedNow.minute;
 
     return routine.find(act => {
-      const [startH, startM] = act.startTime.split(':').map(Number);
-      const [endH, endM] = act.endTime.split(':').map(Number);
-      const startMin = (startH || 0) * 60 + (startM || 0);
-      const endMin = (endH || 0) * 60 + (endM || 0);
+      if (!act || !act.startTime || !act.endTime) return false;
+      const startP = parseTime(act.startTime);
+      const endP = parseTime(act.endTime);
+      const startMin = startP.hour24 * 60 + startP.minute;
+      const endMin = endP.hour24 * 60 + endP.minute;
       return currMin >= startMin && currMin < endMin;
-    }) || routine[0];
-  }, [routine, currentTime]);
+    }) || null;
+  }, [routine, activeCurrentTime]);
+
+  // Single Source of Truth for Shared Weather Intelligence
+  const sharedIntelligence = useMemo(() => {
+    return evaluateSharedWeatherIntelligence({
+      userId: currentUser?.id || 'usr_demo',
+      date: new Date().toISOString().split('T')[0],
+      selectedPersonas,
+      routine,
+      athleteProfile: currentUser,
+      weatherData
+    });
+  }, [weatherData, routine, selectedPersonas, currentUser]);
 
   // Compute Ranked Widgets via Rule-Based Personalization Engine
   const rankedWidgets = useMemo(() => {
     return getRankedWidgets({
       selectedPersonas,
       currentActivity,
-      currentTime,
+      currentTime: activeCurrentTime,
       weatherData,
+      routine,
+      sharedIntelligence,
       locationPurpose: weatherData.purpose,
       severeWarningActive: simulatedSeverity === 'RED',
       selectedPlot,
       language
     });
-  }, [selectedPersonas, currentActivity, currentTime, weatherData, simulatedSeverity, selectedPlot, language]);
+  }, [selectedPersonas, currentActivity, activeCurrentTime, weatherData, routine, sharedIntelligence, simulatedSeverity, selectedPlot, language]);
 
   // Generate Daily Briefing
   const briefingText = useMemo(() => {
     return generateDailyBriefing({
-      currentTime,
+      currentTime: activeCurrentTime,
       currentActivity,
       weatherData,
       selectedPersonas,
       selectedPlot,
-      language
+      language,
+      routine
     });
-  }, [currentTime, currentActivity, weatherData, selectedPersonas, selectedPlot, language]);
+  }, [activeCurrentTime, currentActivity, weatherData, selectedPersonas, selectedPlot, language, routine]);
 
   // Generate Contextual Nudge
   const nudge = useMemo(() => {
     const rawNudge = generateContextualNudge({
-      currentTime,
+      currentTime: activeCurrentTime,
       currentActivity,
       weatherData,
       selectedPersonas,
@@ -154,7 +214,7 @@ export default function App() {
     });
     if (rawNudge && rawNudge.id === dismissedNudgeId) return null;
     return rawNudge;
-  }, [currentTime, currentActivity, weatherData, selectedPersonas, dismissedNudgeId, selectedPlot, language]);
+  }, [activeCurrentTime, currentActivity, weatherData, selectedPersonas, dismissedNudgeId, selectedPlot, language]);
 
   // Evaluate Safety Hierarchy (Green / Amber / Red)
   const safetyInfo = useMemo(() => {
@@ -166,6 +226,19 @@ export default function App() {
       language
     });
   }, [weatherData, simulatedSeverity, currentActivity, selectedPersonas, language]);
+
+  // Evaluate Context-Aware Alert Intelligence Engine
+  useEffect(() => {
+    const evaluated = alertIntelligenceService.evaluateAlerts({
+      weatherData,
+      routine,
+      selectedPersonas,
+      safetyInfo,
+      selectedLocation,
+      userProfile: currentUser
+    });
+    setAlerts(evaluated || []);
+  }, [weatherData, routine, selectedPersonas, safetyInfo, selectedLocation, currentUser]);
 
   // Handlers
   const handleTogglePersona = (personaId) => {
@@ -183,9 +256,20 @@ export default function App() {
     if (!profile) return;
     setActiveProfileId(profileId);
     setSelectedPersonas(profile.personas);
-    setCurrentLocationId(profile.locationId);
+    const userLocs = customLocationStore.getAllLocations();
+    const userPrimary = userLocs[0];
+    if (userPrimary) {
+      setCurrentLocationId(userPrimary.id);
+    }
     setCurrentTime(profile.timeSimulation);
-    if (profile.routine) setRoutine(profile.routine);
+    if (profile.routine) {
+      const adaptedRoutine = profile.routine.map(act => ({
+        ...act,
+        location: userPrimary ? userPrimary.name : act.location,
+        locationId: userPrimary ? userPrimary.id : act.locationId
+      }));
+      setRoutine(adaptedRoutine);
+    }
   };
 
   const handleToggleSevereAlert = () => {
@@ -202,9 +286,13 @@ export default function App() {
   // Auth & Onboarding Flow Transitions
   const handleQuestionsComplete = (answers) => {
     setCollectedPreferences(answers);
-    const derived = derivePersonasFromPreferences(answers);
-    setDerivedPersonas(derived);
-    setSelectedPersonas(derived);
+    const step1Personas = getStep1Personas(answers);
+    setDerivedPersonas(step1Personas);
+    setSelectedPersonas(step1Personas);
+    authService.savePersonalization({
+      personas: step1Personas,
+      preferences: answers
+    });
     setCurrentScreen('location_setup');
   };
 
@@ -340,6 +428,7 @@ export default function App() {
     return (
       <PersonalizationComplete
         derivedPersonas={derivedPersonas}
+        preferences={collectedPreferences}
         routine={routine}
         onOpenMausam={handleOpenMausamFromOnboarding}
       />
@@ -368,8 +457,8 @@ export default function App() {
     <div className="min-h-screen bg-slate-950 text-slate-900 font-sans flex flex-col">
       {/* 1. TOP JUDGE DEMO BAR */}
       <DemoControlBar
-        currentTime={currentTime}
-        onTimeChange={setCurrentTime}
+        currentTime={activeCurrentTime}
+        onTimeChange={setSimulatedTime}
         activeProfileId={activeProfileId}
         onSelectProfile={handleSelectProfile}
         simulatedSeverity={simulatedSeverity}
@@ -377,6 +466,7 @@ export default function App() {
         isMobileFramed={isMobileFramed}
         onToggleFrame={() => setIsMobileFramed(!isMobileFramed)}
         onResetOnboarding={() => setCurrentScreen('language')}
+        onOpenChat={() => setIsChatbotOpen(true)}
       />
 
       {/* 2. MAIN APP VIEWPORT */}
@@ -393,8 +483,10 @@ export default function App() {
             onOpenLocationPicker={() => setIsLocationPickerOpen(true)}
             onOpenDrawer={() => setIsDrawerOpen(true)}
             briefingText={briefingText}
-            currentTime={currentTime}
+            currentTime={activeCurrentTime}
             onOpenSearch={() => setIsLocationPickerOpen(true)}
+            activeAlertCount={alerts.filter(a => a.status === 'ACTIVE').length}
+            onOpenAlertCenter={() => setIsAlertCenterOpen(true)}
           />
 
           {/* Tab Views */}
@@ -406,11 +498,20 @@ export default function App() {
                 selectedPersonas={selectedPersonas}
                 onTogglePersona={handleTogglePersona}
                 routine={routine}
-                currentTime={currentTime}
+                currentTime={activeCurrentTime}
                 safetyInfo={safetyInfo}
+                alerts={alerts}
+                onSelectAlert={(a) => setSelectedAlert(a)}
+                onOpenAlertCenter={() => setIsAlertCenterOpen(true)}
                 nudge={nudge}
+                isWeatherLoading={isWeatherLoading}
+                isWeatherError={isWeatherError}
+                weatherErrorInfo={weatherErrorInfo}
+                isUVLive={isUVLive}
+                onRefresh={refreshWeather}
                 onExplainWidget={(w) => setExplainingWidget(w)}
                 onEditRoutine={() => setIsRoutineEditorOpen(true)}
+                onSelectRoutine={(act) => setSelectedRouteActivity(act)}
                 onOpenAlerts={() => setActiveTab('alerts')}
                 onOpenRadar={() => setActiveTab('radar')}
                 onNudgeAction={(tab) => tab && setActiveTab(tab)}
@@ -422,7 +523,7 @@ export default function App() {
             {activeTab === 'forecast' && (
               <ForecastView
                 weatherData={weatherData}
-                routine={routine}
+                selectedLocation={selectedLocation}
               />
             )}
 
@@ -431,6 +532,8 @@ export default function App() {
                 safetyInfo={safetyInfo}
                 weatherData={weatherData}
                 routine={routine}
+                alerts={alerts}
+                onSelectAlert={(a) => setSelectedAlert(a)}
               />
             )}
 
@@ -441,12 +544,13 @@ export default function App() {
                   setCurrentLocationId(locId);
                   setActiveTab('home');
                 }}
+                onOpenChat={() => setIsChatbotOpen(true)}
               />
             )}
 
             {activeTab === 'radar' && (
               <RadarMapView
-                weatherData={weatherData}
+                location={selectedLocation}
               />
             )}
           </main>
@@ -455,7 +559,7 @@ export default function App() {
           <BottomNav
             activeTab={activeTab === 'radar' ? 'forecast' : activeTab}
             onTabChange={setActiveTab}
-            alertCount={safetyInfo.isSevere ? 1 : 0}
+            alertCount={alerts.filter(a => a.status === 'ACTIVE').length}
             onOpenChat={() => setIsChatbotOpen(true)}
           />
         </div>
@@ -507,6 +611,8 @@ export default function App() {
         widget={explainingWidget}
         isOpen={!!explainingWidget}
         onClose={() => setExplainingWidget(null)}
+        weatherData={weatherData}
+        selectedPersonas={selectedPersonas}
       />
 
       <RoutineEditorModal
@@ -526,6 +632,18 @@ export default function App() {
         onSelectLocation={(locId) => setCurrentLocationId(locId)}
       />
 
+      {/* Daily Routine Journey & Route Weather Modal */}
+      <RouteWeatherDetailModal
+        isOpen={!!selectedRouteActivity}
+        onClose={() => setSelectedRouteActivity(null)}
+        activity={selectedRouteActivity}
+        baseLocation={selectedLocation}
+        weatherData={weatherData}
+        safetyInfo={safetyInfo}
+        selectedPersonas={selectedPersonas}
+        allLocations={customLocationStore.getAllLocations()}
+      />
+
       <OnboardingModal
         isOpen={isOnboardingOpen}
         onComplete={handleOnboardingComplete}
@@ -538,12 +656,13 @@ export default function App() {
         user={currentUser}
         selectedPersonas={selectedPersonas}
         currentLocation={weatherData}
-        currentTime={currentTime}
+        currentTime={activeCurrentTime}
         currentActivity={currentActivity}
         routine={routine}
         savedLocations={customLocationStore.getAllLocations()}
         weatherData={weatherData}
         safetyInfo={safetyInfo}
+        isWeatherError={isWeatherError}
       />
     </div>
   );

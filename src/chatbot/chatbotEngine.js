@@ -1,197 +1,352 @@
-import { detectIntent } from './intentDetector';
+/**
+ * MAUSAM Assistant - Response & Routing Engine
+ * 
+ * 3-Tier Intelligence Architecture:
+ * 
+ * 1. INFORM (Pure Weather Fact Queries)
+ *    e.g. "What is the temperature right now?", "How humid is it?"
+ *    -> Returns exact metric. No recommendations or schedule claims.
+ * 
+ * 2. INTERPRET (General Weather Guidance)
+ *    e.g. "How is the weather today?", "How is the weather right now?"
+ *    -> Returns weather summary + physical comfort interpretation + outdoor guidance.
+ *    -> NEVER uses generic "You can proceed with your daily schedule."
+ * 
+ * 3. RECOMMEND (Activity-Aware Decision Intelligence)
+ *    e.g. "Should I go running?", "Can I travel today?", "Should I study indoors today?"
+ *    -> Evaluates SharedDecisionContext with Activity-Aware Factor Selection.
+ *    -> Returns GO / MODIFY / RESCHEDULE with exact factor reasoning.
+ */
 
-export function generateChatbotResponse(query, context) {
-  const lang = context.user.language || 'en';
-  const isHindi = lang === 'hi';
-  const intent = detectIntent(query, lang);
-  const weather = context.weather;
-  const safety = context.safetyInfo;
+import { detectIntent } from './intentDetector.js';
+import { normalizeWeatherContext } from './normalizedWeatherContext.js';
+import { generateContextualWeatherGuidance } from './contextualGuidanceEngine.js';
+import { evaluateSportspersonQuery } from './engines/sportspersonEngine.js';
+import { evaluateRouteWeather } from '../engine/routeWeatherEngine.js';
+import { timeContextService } from '../services/timeContextService.js';
+import { resolveScenarioContext } from '../engine/scenarioContextResolver.js';
+import { validateDecisionConsistency } from '../engine/decisionConsistencyValidator.js';
 
-  // 1. Critical Safety Override Check
-  if (safety && safety.isSevere) {
-    if (isHindi) {
-      return {
-        weather: `गंभीर मौसम चेतावनी (${safety.severityLevel}) सक्रिय है।`,
-        impact: `तेज आंधी और भारी वर्षा की चेतावनी जारी की गई है।`,
-        recommendation: `अनावश्यक बाहरी गतिविधियों से बचें और सुरक्षित पक्के आश्रय में रहें।`,
-        safety: `⚠️ आधिकारिक IMD रेड अलर्ट सक्रिय है।`,
-        disclaimer: `वर्तमान MAUSAM डेमो पूर्वानुमान के आधार पर।`
-      };
+export function generateChatbotResponse(query = '', context = {}) {
+  const lang = context.language || context.userProfile?.language || 'en';
+  const isHindi = lang === 'hi' || lang === 'Hindi';
+  
+  console.log('[CHAT_PIPELINE] Message received:', query);
+
+  // STAGE 1: INTENT DETECTION
+  let intent;
+  try {
+    const queryTimeCtx = timeContextService.parseQueryTimeContext ? timeContextService.parseQueryTimeContext(query) : {};
+    intent = detectIntent(query, lang) || { type: 'general_weather_guidance' };
+    intent.queryTimeContext = queryTimeCtx;
+    if (queryTimeCtx.queryTime && queryTimeCtx.queryTime !== 'now') {
+      intent.requestedTime = queryTimeCtx.queryTime;
     }
-    return {
-      weather: `Severe Weather Warning (${safety.severityLevel}) Active.`,
-      impact: `High wind gusts and heavy downpours are forecast across the region.`,
-      recommendation: `Avoid unnecessary outdoor travel and seek secure indoor shelter.`,
-      safety: `⚠️ Official IMD Red Alert is currently in effect.`,
-      disclaimer: `Based on current MAUSAM demo forecast.`
+    console.log('[CHAT_PIPELINE] Intent detected:', intent.type, '| ActivityType:', intent.targetActivityType || 'none');
+  } catch (err) {
+    console.error('[CHAT_PIPELINE_ERROR] stage: INTENT_DETECTION | error:', err.message);
+    intent = { type: 'general_weather_guidance', rawQuery: query };
+  }
+
+  // STAGE 2: WEATHER CONTEXT NORMALIZATION
+  let normWeather;
+  try {
+    normWeather = normalizeWeatherContext(context, intent);
+    console.log('[CHAT_PIPELINE] Weather normalized | Location:', normWeather.locationName, '| Temp:', normWeather.temperature);
+  } catch (err) {
+    console.error('[CHAT_PIPELINE_ERROR] stage: WEATHER_NORMALIZATION | error:', err.message);
+    normWeather = {
+      locationName: context.selectedLocation?.name || 'Selected Location',
+      temperature: 27,
+      humidity: 80,
+      windSpeed: 10,
+      precipitationProbability: 15,
+      condition: 'Clear',
+      groundCondition: 'Firm & Dry'
     };
   }
 
-  // 2. Scenario A: Temporary Routine Change (e.g. "I need to leave my office at 6:15 PM")
-  if (intent.isTemporaryRoutineQuery && (intent.activityType === 'commute' || query.includes('office') || query.includes('6:15') || query.includes('leave') || query.includes('शाम 6:15') || query.includes('निकल'))) {
-    const reqTime = intent.requestedTime || '18:15';
+  const qLower = (query || '').toLowerCase().trim();
 
-    if (isHindi) {
+  // -------------------------------------------------------------
+  // TIER 1: PURE INFORMATIONAL QUERIES (Type A - Pure Facts, No Recommendation)
+  // -------------------------------------------------------------
+  if (intent.type === 'pure_info_query') {
+    console.log('[CHAT_PIPELINE] Executing TIER 1: PURE_INFO_QUERY | Metric:', intent.metricType);
+    const mType = intent.metricType || 'temp';
+
+    if (mType === 'humidity') {
+      const humVal = normWeather.humidity != null ? `${normWeather.humidity}%` : '80%';
       return {
-        weather: `शाम ${reqTime} बजे बारिश की संभावना 78% और गरज-चमक की स्थिति अनुमानित है।`,
-        impact: `आपकी सामान्य यात्रा शाम 4:30 बजे होती है, लेकिन आज की शाम ${reqTime} बजे की देर से यात्रा अधिक बारिश वाले समय से मेल खाती है।`,
-        recommendation: `संभव हो तो बारिश तेज होने से पहले निकलें या मेट्रो / सुरक्षित बंद वाहन का उपयोग करें।`,
-        safety: `सड़कों पर जलभराव और कम दृश्यता के प्रति सतर्क रहें।`,
-        disclaimer: `वर्तमान MAUSAM डेमो पूर्वानुमान के आधार पर।`
+        answer: isHindi
+          ? `${normWeather.locationName} पर वर्तमान सापेक्ष आर्द्रता ${humVal} है।`
+          : `Relative humidity at ${normWeather.locationName} is currently ${humVal}.`,
+        why: isHindi ? 'वास्तविक समय मौसम सेंसर डेटा।' : 'Real-time ambient metric.',
+        action: null,
+        safety: null,
+        metrics: { humidity: humVal },
+        ruleTriggered: 'PURE_FACT_HUMIDITY',
+        disclaimer: isHindi ? 'IMD मौसम मापदंड।' : 'IMD weather metric.'
+      };
+    } else if (mType === 'wind') {
+      const windVal = normWeather.windSpeed != null ? `${normWeather.windSpeed} km/h` : '10 km/h';
+      return {
+        answer: isHindi
+          ? `${normWeather.locationName} पर हवा की गति ${windVal} (${normWeather.windDirection || 'SSW'}) है।`
+          : `Wind speed at ${normWeather.locationName} is currently ${windVal} (${normWeather.windDirection || 'SSW'}).`,
+        why: isHindi ? 'वास्तविक समय हवा गति मापदंड।' : 'Real-time wind velocity metric.',
+        action: null,
+        safety: null,
+        metrics: { wind: windVal },
+        ruleTriggered: 'PURE_FACT_WIND',
+        disclaimer: isHindi ? 'IMD मौसम मापदंड।' : 'IMD weather metric.'
+      };
+    } else if (mType === 'rain') {
+      const popVal = normWeather.precipitationProbability != null ? `${normWeather.precipitationProbability}%` : '15%';
+      return {
+        answer: isHindi
+          ? `${normWeather.locationName} पर वर्तमान वर्षा की संभावना ${popVal} है।`
+          : `Precipitation probability at ${normWeather.locationName} is currently ${popVal}.`,
+        why: isHindi ? 'पूर्वानुमानित वर्षा मापदंड।' : 'Forecast precipitation risk.',
+        action: null,
+        safety: null,
+        metrics: { rainProb: popVal },
+        ruleTriggered: 'PURE_FACT_RAIN',
+        disclaimer: isHindi ? 'IMD मौसम मापदंड।' : 'IMD weather metric.'
+      };
+    } else {
+      const tempVal = normWeather.temperature != null ? `${normWeather.temperature}°C` : '27°C';
+      return {
+        answer: isHindi
+          ? `${normWeather.locationName} पर वर्तमान तापमान ${tempVal} है।`
+          : `Current temperature at ${normWeather.locationName} is ${tempVal}.`,
+        why: isHindi ? 'वास्तविक समय सेंसर डेटा।' : 'Real-time ambient metric.',
+        action: null,
+        safety: null,
+        metrics: { temp: tempVal },
+        ruleTriggered: 'PURE_FACT_TEMPERATURE',
+        disclaimer: isHindi ? 'IMD मौसम मापदंड।' : 'IMD weather metric.'
       };
     }
+  }
+
+  // -------------------------------------------------------------
+  // TIER 2: GENERAL WEATHER GUIDANCE (Type B - Weather Summary + Guidance)
+  // -------------------------------------------------------------
+  if (intent.type === 'general_weather_guidance') {
+    console.log('[CHAT_PIPELINE] Executing TIER 2: GENERAL_WEATHER_GUIDANCE');
+    const guidance = generateContextualWeatherGuidance({
+      normalizedWeather: normWeather,
+      upcomingActivities: context.routine || [],
+      language: lang
+    });
 
     return {
-      weather: `At ${reqTime}, rain probability increases to 78% with thunderstorm potential.`,
-      impact: `Your usual commute is at 16:30, but today's ${reqTime} trip falls directly within the higher-risk rain window.`,
-      recommendation: `Consider departing 25 minutes earlier or choosing metro / covered transit over two-wheelers.`,
-      safety: `Waterlogging on lower arterial corridors may cause travel delays.`,
-      disclaimer: `Based on current MAUSAM demo forecast.`
+      answer: guidance.summary,
+      why: guidance.why,
+      action: guidance.action,
+      safety: null,
+      metrics: guidance.metrics,
+      ruleTriggered: 'GENERAL_WEATHER_CONTEXTUAL_GUIDANCE',
+      disclaimer: isHindi ? 'MAUSAM संदर्भिक मौसम व्याख्या।' : 'MAUSAM Contextual Weather Interpretation.'
     };
   }
 
-  // 3. Scenario B: Running / Fitness (e.g. "Can I run at 7 PM today?", "क्या मैं अभी दौड़ने जा सकता हूँ?")
-  if (intent.activityType === 'fitness') {
-    if (intent.requestedTime && (intent.requestedTime.startsWith('18') || intent.requestedTime.startsWith('19') || intent.requestedTime.startsWith('20'))) {
-      if (isHindi) {
+  // -------------------------------------------------------------
+  // TIER 3: ACTIVITY RECOMMENDATION (Type C - Activity-Aware Decision Intelligence)
+  // -------------------------------------------------------------
+  if (intent.type === 'activity_recommendation') {
+    console.log('[CHAT_PIPELINE] Executing TIER 3: ACTIVITY_RECOMMENDATION | Type:', intent.targetActivityType);
+    const actType = intent.targetActivityType || 'sports';
+
+    // SPECIALIZED ROUTING 1: TRAVEL & COMMUTE (Exclude WBGT)
+    if (actType === 'travel') {
+      const routine = context.routine || [];
+      const travelActivity = routine.find(r => r.type === 'commute' || r.type === 'travel' || (r.label || '').toLowerCase().includes('travel')) || {
+        label: 'Travel Corridor',
+        type: 'commute',
+        startTime: intent.requestedTime || '09:00',
+        endTime: '18:00',
+        location: `${normWeather.locationName} Highway Corridor`
+      };
+
+      const routeEval = evaluateRouteWeather({
+        activity: travelActivity,
+        baseLocation: context.selectedLocation,
+        weatherData: { current: context.weather, forecast3Hourly: context.forecast, metadata: { isLive: true } },
+        safetyInfo: context.safetyInfo,
+        selectedPersonas: context.selectedPersonas,
+        language: lang
+      });
+
+      return {
+        answer: routeEval.summaryHeadline,
+        why: isHindi
+          ? `यात्रा के लिए मुख्य मापदंड (बारिश, हवा, दृश्यता, मार्ग स्थिति): वर्षा जोखिम ${routeEval.metrics.rainProb}, हवा ${routeEval.metrics.wind}।`
+          : `Key travel factors evaluated (rain, wind, road traction): precipitation probability is ${routeEval.metrics.rainProb} with ${routeEval.metrics.wind} winds.`,
+        action: routeEval.summaryAdvice,
+        safety: routeEval.isSevere ? routeEval.safetyBadge : null,
+        metrics: {
+          temp: routeEval.metrics.temp,
+          rainProb: routeEval.metrics.rainProb,
+          wind: routeEval.metrics.wind,
+          groundCondition: routeEval.corridorWeather.roadTraction
+        },
+        ruleTriggered: 'TRAVEL_RECOMMENDATION_EVALUATED',
+        disclaimer: isHindi ? 'मार्ग व यात्रा मौसम सुरक्षा इंजन।' : 'Travel Corridor Weather Safety Engine.'
+      };
+    }
+
+    // SPECIALIZED ROUTING 2: INDOOR STUDY & WORK (Exclude WBGT)
+    if (actType === 'indoor') {
+      const tempVal = normWeather.temperature != null ? `${normWeather.temperature}°C` : '27°C';
+      const aqiVal = normWeather.aqi != null ? `AQI ${normWeather.aqi} (${normWeather.aqiStatus || 'Good'})` : (isHindi ? 'AQI सामान्य' : 'AQI Satisfactory');
+      const isSevere = context.safetyInfo?.isSevere;
+
+      if (isSevere) {
         return {
-          weather: `शाम के समय तापमान 24.5°C और आर्द्रता 88% रहेगी। हल्की बूंदाबांदी की संभावना (65%) है।`,
-          impact: `शाम के समय पार्क के ट्रैक गीले और फिसलन भरे हो सकते हैं।`,
-          recommendation: `शाम के बजाय कल सुबह 6:00 से 7:30 बजे दौड़ना अधिक आरामदायक रहेगा जब मौसम सूखा और अनुकूल होगा।`,
-          safety: `सड़क पर दौड़ते समय फिसलन रोधी जूतों का उपयोग करें।`,
-          disclaimer: `वर्तमान MAUSAM डेमो पूर्वानुमान के आधार पर।`
+          answer: isHindi ? 'हाँ, इनडोर रहना और पढ़ाई/कार्य करना सबसे सुरक्षित विकल्प है।' : 'Yes, staying indoors for study/work is the safest option today.',
+          why: isHindi ? `आधिकारिक मौसम चेतावनी (${context.safetyInfo.headline}) सक्रिय है। इनडोर वातावरण पूरी तरह सुरक्षित है।` : `Severe weather alert in effect (${context.safetyInfo.headline}). Indoor facilities provide full shelter protection.`,
+          action: isHindi ? 'सभी बाहरी आवागमन रोकें और इनडोर कार्य जारी रखें।' : 'Avoid non-essential transit and proceed with indoor tasks.',
+          safety: isHindi ? '⚠️ इनडोर सुरक्षित आश्रय अनुशंसित' : '⚠️ Indoor Safe Shelter Recommended',
+          metrics: { temp: tempVal, indoorSafety: isHindi ? 'सुरक्षित' : 'Protected' },
+          ruleTriggered: 'INDOOR_STUDY_RECOMMENDATION',
+          disclaimer: isHindi ? 'इनडोर सुरक्षा विश्लेषण।' : 'Indoor Shelter & Productivity Protocol.'
         };
       }
 
       return {
-        weather: `Evening forecast indicates 24.5°C with 88% humidity and 65% precipitation probability.`,
-        impact: `Wet pavement and humid air will elevate respiratory exertion during intense cardio.`,
-        recommendation: `Consider shifting your workout to tomorrow morning (6:00–7:30 AM) when conditions are dry and cooler.`,
-        safety: `Wear reflective gear and slip-resistant footwear if running on damp roads.`,
-        disclaimer: `Based on current MAUSAM demo forecast.`
+        answer: isHindi
+          ? `हाँ, इनडोर पढ़ाई और कार्य के लिए स्थितियां अनुकूल हैं।`
+          : `Yes, conditions are favorable for indoor study and work sessions.`,
+        why: isHindi
+          ? `इनडोर वातावरण के लिए मुख्य मापदंड: इनडोर तापमान ${tempVal} और वायु गुणवत्ता (${aqiVal})।`
+          : `Indoor parameters evaluated: ambient temp ${tempVal} and air quality (${aqiVal}). Heavy outdoor exertion factors do not impact indoor productivity.`,
+        action: isHindi
+          ? 'कमरे में उचित वेंटिलेशन बनाए रखें और अध्ययन सत्र जारी रखें।'
+          : 'Maintain comfortable room ventilation and proceed with your study schedule.',
+        safety: null,
+        metrics: { temp: tempVal, aqi: aqiVal },
+        ruleTriggered: 'INDOOR_STUDY_RECOMMENDATION',
+        disclaimer: isHindi ? 'इनडोर वातावरण विश्लेषण।' : 'Indoor Productivity Context Engine.'
       };
     }
 
-    // Default Running (Now)
-    if (isHindi) {
+    // SPECIALIZED ROUTING 3: SPORTS & RUNNING (Includes WBGT, Turf, Rain, Wind)
+    let scenarioContext = null;
+    try {
+      scenarioContext = resolveScenarioContext({
+        userId: context.userProfile?.userId,
+        query,
+        date: intent.queryTimeContext?.queryDate,
+        selectedPersonas: context.selectedPersonas,
+        routine: context.routine,
+        weatherData: { current: context.weather, forecast3Hourly: context.forecast },
+        safetyInfo: context.safetyInfo,
+        language: lang
+      });
+    } catch (err) {
+      console.warn('[CHAT_PIPELINE_WARN] stage: SCENARIO_RESOLUTION | error:', err.message);
+    }
+
+    let response = null;
+    try {
+      response = evaluateSportspersonQuery(intent, context);
+    } catch (err) {
+      console.error('[CHAT_PIPELINE_ERROR] stage: SPORTSPERSON_ENGINE | error:', err.message);
+    }
+
+    if (scenarioContext && response) {
+      try {
+        response = validateDecisionConsistency(response, scenarioContext, lang);
+      } catch (err) {
+        console.warn('[CHAT_PIPELINE_WARN] stage: DECISION_CONSISTENCY_VALIDATOR | error:', err.message);
+      }
+    }
+
+    if (response) return response;
+  }
+
+  // OTHER ROUTING: FORECAST INFO
+  if (intent.type === 'forecast_info') {
+    console.log('[CHAT_PIPELINE] Executing ROUTE: FORECAST_INFO');
+    const tempDisplay = normWeather.temperature != null ? `${normWeather.temperature}°C` : '27°C';
+    const rainDisplay = normWeather.precipitationProbability != null ? `${normWeather.precipitationProbability}%` : '20%';
+    const windDisplay = normWeather.windSpeed != null ? `${normWeather.windSpeed} km/h` : '10 km/h';
+
+    return {
+      answer: isHindi
+        ? `पूर्वानुमानित तापमान लगभग ${tempDisplay} और बारिश की संभावना ${rainDisplay} है।`
+        : `Tomorrow's forecast indicates temperature around ${tempDisplay} with a ${rainDisplay} precipitation chance.`,
+      why: isHindi
+        ? `हवा की गति ${windDisplay} रहेगी और मौसम मापदंड सामान्य सीमा में रहने का अनुमान है।`
+        : `Wind speeds will average ${windDisplay} and weather conditions are expected to remain stable.`,
+      action: isHindi
+        ? 'आप अपनी कल की योजनाओं को सामान्य रूप से निर्धारित रख सकते हैं।'
+        : 'You can maintain your planned schedule for tomorrow.',
+      safety: null,
+      metrics: { temp: tempDisplay, rainProb: rainDisplay, wind: windDisplay },
+      ruleTriggered: 'FORECAST_INFO_DISPATCH',
+      disclaimer: isHindi ? 'IMD 3-घंटे पूर्वानुमान डेटा।' : 'IMD 3-hourly forecast model.'
+    };
+  }
+
+  // OTHER ROUTING: CONCEPT EXPLANATION (WBGT, Humidity, Rain)
+  if (intent.type === 'general_weather_explain') {
+    console.log('[CHAT_PIPELINE] Executing ROUTE: CONCEPT_EXPLANATION');
+    if (qLower.includes('wbgt')) {
       return {
-        weather: `वर्तमान तापमान ${weather.temp}°C और वायु गुणवत्ता (AQI ${weather.aqi}) संतोषजनक है।`,
-        impact: `मौसम दौड़ने और शारीरिक कसरत के लिए अनुकूल है।`,
-        recommendation: `सुबह का समय कसरत के लिए सर्वोत्तम है। धूप तेज होने से पहले 45 मिनट की दौड़ पूरी करें।`,
-        safety: `पर्याप्त मात्रा में पानी पिएं।`,
-        disclaimer: `वर्तमान MAUSAM डेमो पूर्वानुमान के आधार पर।`
+        answer: isHindi
+          ? 'WBGT (Wet Bulb Globe Temperature) पर्यावरण तापीय तनाव का अंतरराष्ट्रीय मापदंड है।'
+          : 'WBGT (Wet Bulb Globe Temperature) is the gold-standard metric for environmental heat strain.',
+        why: isHindi
+          ? 'यह केवल हवा का तापमान ही नहीं, बल्कि आर्द्रता, हवा की गति और सौर विकिरण के संयुक्त प्रभाव को मापता है।'
+          : 'Unlike air temperature, WBGT incorporates humidity, wind speed, solar radiation, and ambient temp to assess true thermal load on the human body.',
+        action: isHindi
+          ? 'जब WBGT 29°C से अधिक होता है, तो पानी का सेवन बढ़ाएं और 32.2°C पर बाहरी अभ्यास रोक दें।'
+          : 'When WBGT exceeds 29°C, increase hydration breaks. At 32.2°C+, suspend intense outdoor drills to prevent heat illness.',
+        safety: null,
+        metrics: normWeather.wbgtValue != null ? { temp: `${normWeather.temperature || 30}°C`, wbgt: `${normWeather.wbgtValue}°C` } : null,
+        ruleTriggered: 'CONCEPT_EXPLANATION_WBGT',
+        disclaimer: isHindi ? 'IMD व अंतरराष्ट्रीय खेल सुरक्षा मानकों पर आधारित।' : 'Based on IMD & international sports safety guidelines.'
       };
     }
+  }
 
+  // OTHER ROUTING: GENERAL GREETING
+  if (intent.type === 'general_greeting') {
     return {
-      weather: `Current temperature is ${weather.temp}°C with Satisfactory Air Quality (AQI ${weather.aqi}).`,
-      impact: `Optimal atmospheric conditions for outdoor aerobic endurance and jogging.`,
-      recommendation: `Great window for a 45-minute outdoor run before solar radiation rises.`,
-      safety: `Maintain hydration intervals.`,
-      disclaimer: `Based on current MAUSAM demo forecast.`
+      answer: isHindi 
+        ? 'नमस्ते! मैं आपका MAUSAM खिलाड़ी मौसम सहायक हूँ।' 
+        : 'Hello! I am your personalized MAUSAM Weather Assistant.',
+      why: isHindi
+        ? 'मैं आपके स्थान, दैनिक दिनचर्या, खेल मैदान, बारिश के जोखिम और WBGT तापीय तनाव का वास्तविक समय में विश्लेषण करता हूँ।'
+        : 'I evaluate training windows, field traction, rain probabilities, WBGT heat stress, and safety overrides based on your schedule.',
+      action: isHindi
+        ? 'आप मुझसे "क्या मैं अभी अभ्यास करूँ?", "आज का मौसम कैसा है?", "क्या मैं यात्रा करूँ?", या "आर्द्रता क्या है?" जैसे प्रश्न पूछ सकते हैं।'
+        : 'Feel free to ask questions like "Should I go running?", "How is the weather today?", "Can I travel today?", or "What is humidity?".',
+      safety: null,
+      metrics: null,
+      ruleTriggered: 'GENERAL_GREETING_RESPONSE',
+      disclaimer: isHindi ? 'MAUSAM नियम-आधारित मौसम सहायक।' : 'MAUSAM Rule-Based Assistant.'
     };
   }
 
-  // 4. Scenario C: Agriculture / Spraying (e.g. "Is my farm suitable for spraying tomorrow morning?")
-  if (intent.activityType === 'agriculture') {
-    if (isHindi) {
-      return {
-        weather: `अगले 36 घंटों में बारिश की संभावना नगण्य (<15%) है और हवा की गति 7-9 km/h शांत रहेगी।`,
-        impact: `कीटनाशक या उर्वरक के बह जाने (वॉशआउट) का जोखिम न्यूनतम है।`,
-        recommendation: `कल सुबह 7:00 से 10:30 बजे के बीच पर्णीय छिड़काव (Foliar Spray) और यूरिया टॉप-ड्रेसिंग के लिए अत्यंत अनुकूल समय है।`,
-        safety: `अनुमानित जोखिम संकेतक: उच्च आर्द्रता के कारण धान के निचले पत्तों पर ब्लास्ट रोग के लक्षणों की जांच करें।`,
-        disclaimer: `वर्तमान MAUSAM डेमो कृषि मॉडल के आधार पर।`
-      };
-    }
-
-    return {
-      weather: `Rain probability is low (<15%) with steady, calm winds (7–9 km/h) over the next 36 hours.`,
-      impact: `Zero washout risk for foliar spray and fertilizer top-dressing.`,
-      recommendation: `Tomorrow morning (07:00–10:30 AM) provides an optimal window for field chemical spraying.`,
-      safety: `Estimated Risk Indicator: High humidity encourages leaf blast; inspect lower stems during field scouting.`,
-      disclaimer: `Based on current MAUSAM demo agromet model.`
-    };
-  }
-
-  // 5. Scenario D: Commute / Rain query (e.g. "Will it rain during my commute?")
-  if (intent.activityType === 'commute' || intent.activityType === 'rain') {
-    if (isHindi) {
-      return {
-        weather: `शाम 4:30 से 6:30 बजे के बीच बारिश की संभावना 70% तक बढ़ जाएगी।`,
-        impact: `शाम के व्यस्त समय में सड़कों पर यातायात धीमा हो सकता है और जलभराव की संभावना है।`,
-        recommendation: `छाता या रेनकोट साथ रखें। यदि संभव हो तो यात्रा 20 मिनट पहले शुरू करें।`,
-        safety: `दृश्यता 3.5 km तक घट सकती है, वाहन धीमी गति से चलाएं।`,
-        disclaimer: `वर्तमान MAUSAM डेमो पूर्वानुमान के आधार पर।`
-      };
-    }
-
-    return {
-      weather: `Doppler forecast shows rain probability climbing to 70% between 16:30 and 18:30.`,
-      impact: `Peak evening commute will experience localized road spray and slower traffic velocity.`,
-      recommendation: `Carry waterproof protection and plan for an extra 15–20 minutes transit buffer.`,
-      safety: `Transit visibility may reduce to 3.5 km; keep vehicle headlights on low beam.`,
-      disclaimer: `Based on current MAUSAM demo forecast.`
-    };
-  }
-
-  // 6. Scenario E: Outdoor Event (e.g. "Should I move my outdoor event indoors?")
-  if (intent.activityType === 'event') {
-    if (isHindi) {
-      return {
-        weather: `शाम 7:00 बजे तापमान 25°C रहेगा, लेकिन रात 8:00 बजे के आसपास हल्की बारिश की संभावना (65%) है।`,
-        impact: `खुले मैदान में आयोजित कार्यक्रमों में शाम को हल्की बाधा आ सकती है।`,
-        recommendation: `वाटरप्रूफ कैनोपी तैयार रखें या इनडोर हॉल को बैकअप के रूप में आरक्षित रखें।`,
-        safety: `बिजली के उपकरणों को बारिश से सुरक्षित ढक कर रखें।`,
-        disclaimer: `वर्तमान MAUSAM डेमो पूर्वानुमान के आधार पर।`
-      };
-    }
-
-    return {
-      weather: `Evening temperature will be 25°C, with scattered shower risk (65%) developing near 20:00.`,
-      impact: `Open-air seating or lawn receptions may face brief precipitation disruptions.`,
-      recommendation: `Keep a waterproof overhead canopy ready or place the banquet hall on active standby.`,
-      safety: `Ensure electrical sound stages and outdoor wiring are weatherproofed.`,
-      disclaimer: `Based on current MAUSAM demo forecast.`
-    };
-  }
-
-  // 7. Scenario F: Travel / Specific Location query (e.g. "What's the weather at my Mumbai location tonight?")
-  if (intent.targetLocation === 'mumbai' || query.includes('mumbai') || query.includes('मुंबई')) {
-    if (isHindi) {
-      return {
-        weather: `मुंबई में वर्तमान तापमान 28.5°C और समुद्र से 14 km/h की नम हवाएं चल रही हैं।`,
-        impact: `दोपहर बाद 15:45 बजे उच्च ज्वार (3.9m) दर्ज किया गया था। रात का मौसम तटीय टहलने के लिए सुहावना रहेगा।`,
-        recommendation: `मरीन ड्राइव और तटीय इलाकों में शाम की यात्रा के लिए परिस्थितियाँ अच्छी हैं।`,
-        safety: `ऊंची लहरों के समय चट्टानी किनारों से सुरक्षित दूरी बनाए रखें।`,
-        disclaimer: `वर्तमान MAUSAM डेमो पूर्वानुमान के आधार पर।`
-      };
-    }
-
-    return {
-      weather: `Mumbai is at 28.5°C with an onshore coastal breeze of 14 km/h and 78% humidity.`,
-      impact: `High tide occurred at 15:45 (3.9m). Evening coastal conditions remain pleasant and breezy.`,
-      recommendation: `Great conditions for evening travel along Marine Drive and waterfront promenades.`,
-      safety: `Maintain caution near exposed sea barriers during high swell periods.`,
-      disclaimer: `Based on current MAUSAM demo forecast.`
-    };
-  }
-
-  // 8. General / Fallback Weather Response
-  if (isHindi) {
-    return {
-      weather: `वर्तमान में तापमान ${weather.temp}°C, आर्द्रता ${weather.humidity}% और मौसम ${weather.condition} है।`,
-      impact: `आज की दिनचर्या के लिए सामान्य मौसम बना रहेगा।`,
-      recommendation: `आप अपनी सामान्य दिनचर्या जारी रख सकते हैं। किसी विशेष व्यवधान की संभावना नहीं है।`,
-      safety: `AQI ${weather.aqi} (${weather.aqiStatus}) — सुरक्षित स्तर पर है।`,
-      disclaimer: `वर्तमान MAUSAM डेमो पूर्वानुमान के आधार पर।`
-    };
-  }
+  // DEFAULT FALLBACK: TIER 2 GENERAL WEATHER GUIDANCE
+  console.log('[CHAT_PIPELINE] Executing DEFAULT TIER 2 FALLBACK: GENERAL_WEATHER_GUIDANCE');
+  const defaultGuidance = generateContextualWeatherGuidance({
+    normalizedWeather: normWeather,
+    upcomingActivities: context.routine || [],
+    language: lang
+  });
 
   return {
-    weather: `Currently ${weather.temp}°C, ${weather.humidity}% humidity with ${weather.condition}.`,
-    impact: `Normal seasonal conditions across your active locations.`,
-    recommendation: `You can proceed with your scheduled routine without significant weather disruption.`,
-    safety: `AQI is ${weather.aqi} (${weather.aqiStatus}) — within safe limits.`,
-    disclaimer: `Based on current MAUSAM demo forecast.`
+    answer: defaultGuidance.summary,
+    why: defaultGuidance.why,
+    action: defaultGuidance.action,
+    safety: null,
+    metrics: defaultGuidance.metrics,
+    ruleTriggered: 'GENERAL_WEATHER_CONTEXTUAL_GUIDANCE_FALLBACK',
+    disclaimer: isHindi ? 'MAUSAM संदर्भिक मौसम व्याख्या।' : 'MAUSAM Contextual Weather Interpretation.'
   };
 }

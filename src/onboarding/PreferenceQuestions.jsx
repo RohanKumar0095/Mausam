@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, ArrowRight, Check } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Plus, Trash2, Edit2 } from 'lucide-react';
 import { useI18n } from '../i18n/i18nContext';
 
 const QUESTIONS = [
@@ -10,78 +10,17 @@ const QUESTIONS = [
     subtitle: 'Select all that apply to your lifestyle.',
     subtitleHi: 'जो विकल्प आप पर लागू होते हैं, उन्हें चुनें।',
     options: [
-      { id: 'farm', label: '🌾 Farming / Agriculture', labelHi: '🌾 खेती / कृषि कार्य' },
-      { id: 'college', label: '🏫 School / College', labelHi: '🏫 स्कूल / कॉलेज की पढ़ाई' },
-      { id: 'office', label: '💼 Office / Work', labelHi: '💼 कार्यालय / नौकरी / व्यवसाय' },
-      { id: 'running', label: '🏃 Exercise / Running', labelHi: '🏃 व्यायाम / सुबह की दौड़' },
-      { id: 'cycling', label: '🚲 Cycling', labelHi: '🚲 साइकिल चलाना' },
-      { id: 'commute', label: '🚗 Daily Commute / Transit', labelHi: '🚗 दैनिक यात्रा / ऑफिस आना-जाना' },
-      { id: 'travel', label: '✈️ Travelling', labelHi: '✈️ लंबी यात्रा / भ्रमण' },
-      { id: 'events', label: '🎉 Outdoor Events / Functions', labelHi: '🎉 बाहरी सामाजिक कार्यक्रम / उत्सव' },
-      { id: 'beach', label: '🏖️ Beach / Outdoor Leisure', labelHi: '🏖️ समुद्र तट / बाहरी पर्यटन' },
-      { id: 'home', label: '🏠 Mostly at Home', labelHi: '🏠 अधिकांश समय घर पर' },
-      { id: 'family', label: '👨‍👩‍👧 Family / Children Activities', labelHi: '👨‍👩‍👧 परिवार / बच्चों की देखभाल' },
-      { id: 'sports', label: '🏟️ Sports / Outdoor Games', labelHi: '🏟️ खेलकूद / मैदान का अभ्यास' },
-      { id: 'indoor', label: '📚 Mostly Indoor Work / Study', labelHi: '📚 इनडोर अध्ययन / कार्य' },
-      { id: 'other', label: '⚡ Other Activities', labelHi: '⚡ अन्य गतिविधियाँ' },
+      { id: 'farm', label: 'Agriculture', labelHi: 'कृषि कार्य' },
+      { id: 'college', label: 'Health-conscioius', labelHi: 'स्वास्थ्य के प्रति सजग' },
+      { id: 'office', label: 'Sportsperson', labelHi: 'खिलाड़ी' },
+      { id: 'running', label: 'Event planner', labelHi: 'कार्यक्रम आयोजक' },
+      { id: 'cycling', label: 'Commuter', labelHi: 'रोज़ाना आने-जाने वाला व्यक्ति' },
+      { id: 'commute', label: 'Traveler', labelHi: 'सफ़र करने वाला व्यक्ति' },
+      { id: 'travel', label: 'parent', labelHi: 'माता-पिता' },
+      
     ]
   },
-  {
-    id: 'weatherFactors',
-    title: 'Which weather information matters most to you?',
-    titleHi: 'मौसम की कौन-सी जानकारी आपके लिए सबसे महत्वपूर्ण है?',
-    subtitle: 'Choose the parameters you check most frequently.',
-    subtitleHi: 'वे पैरामीटर चुनें जिन्हें आप अक्सर देखते हैं।',
-    options: [
-      { id: 'rain', label: '🌧️ Rain & Thunderstorms', labelHi: '🌧️ बारिश और आंधी-तूफान' },
-      { id: 'temp', label: '🌡️ Temperature & Heat', labelHi: '🌡️ तापमान और गर्मी' },
-      { id: 'uv', label: '☀️ UV / Sun Exposure', labelHi: '☀️ UV सूचकांक / तेज धूप' },
-      { id: 'wind', label: '💨 Wind Speed & Gusts', labelHi: '💨 हवा की गति और झोंके' },
-      { id: 'visibility', label: '🌫️ Visibility / Fog', labelHi: '🌫️ दृश्यता और कोहरा' },
-      { id: 'aqi', label: '😷 Air Quality (AQI)', labelHi: '😷 वायु गुणवत्ता सूचकांक (AQI)' },
-      { id: 'lightning', label: '⚡ Lightning / Severe Weather', labelHi: '⚡ आकाशीय बिजली / गंभीर मौसम' },
-      { id: 'coastal', label: '🌊 Coastal / Tide Conditions', labelHi: '🌊 तटीय स्थिति और समुद्री ज्वार' },
-      { id: 'agri_soil', label: '🌾 Agriculture & Soil Conditions', labelHi: '🌾 कृषि और मृदा नमी' },
-      { id: 'road_transit', label: '🚦 Road / Travel Conditions', labelHi: '🚦 सड़क और यातायात की स्थिति' },
-      { id: 'sun_astro', label: '🌅 Sunrise / Sunset & Astronomy', labelHi: '🌅 सूर्योदय, सूर्यास्त और खगोल' },
-    ]
-  },
-  {
-    id: 'outdoorActivities',
-    title: 'What activities do you regularly do outdoors?',
-    titleHi: 'आप नियमित रूप से कौन-सी बाहरी गतिविधियाँ करते हैं?',
-    subtitle: 'MAUSAM synchronizes predictions with your outdoor hours.',
-    subtitleHi: 'MAUSAM आपके बाहर रहने के समय के साथ पूर्वानुमान का तालमेल बिठाता है।',
-    options: [
-      { id: 'out_run', label: '🏃 Running', labelHi: '🏃 दौड़ना' },
-      { id: 'out_walk', label: '🚶 Walking / Jogging', labelHi: '🚶 टहलना / सुबह की सैर' },
-      { id: 'out_cycle', label: '🚲 Cycling', labelHi: '🚲 साइकिल चलाना' },
-      { id: 'out_sports', label: '🏏 Sports / Games', labelHi: '🏏 क्रिकेट / फुटबॉल / खेल' },
-      { id: 'out_farm', label: '🌾 Farm Work', labelHi: '🌾 खेत की निराई-गुड़ाई व काम' },
-      { id: 'out_commute', label: '🚗 Commuting', labelHi: '🚗 दैनिक सफर / यात्रा' },
-      { id: 'out_events', label: '🎉 Events / Functions', labelHi: '🎉 खुले में कार्यक्रम' },
-      { id: 'out_beach', label: '🏖️ Beach Activities', labelHi: '🏖️ समुद्र तट पर सैर' },
-      { id: 'out_travel', label: '🧳 Travel / Sightseeing', labelHi: '🧳 पर्यटन और दर्शनीय स्थल' },
-      { id: 'out_none', label: '🏠 None / Rarely outdoors', labelHi: '🏠 बहुत कम / केवल घर पर' },
-    ]
-  },
-  {
-    id: 'decisionGoals',
-    title: 'What would you like MAUSAM to help you decide?',
-    titleHi: 'आप MAUSAM की मदद से किन बातों की योजना बनाना चाहते हैं?',
-    subtitle: 'Weather-to-Action intelligence tailored for you.',
-    subtitleHi: 'आपके लिए व्यक्तिगत मौसम-से-कार्रवाई परामर्श।',
-    options: [
-      { id: 'dec_exercise', label: '🏃 Is it a good time to exercise?', labelHi: '🏃 क्या यह व्यायाम करने का सही समय है?' },
-      { id: 'dec_commute', label: '🚗 Is it safe to travel or commute?', labelHi: '🚗 क्या यात्रा करना सुरक्षित है?' },
-      { id: 'dec_farm', label: '🌾 Is it suitable for farm work / spraying?', labelHi: '🌾 क्या खेत में छिड़काव / उर्वरक का सही समय है?' },
-      { id: 'dec_event', label: '🎉 Is it suitable for an outdoor event?', labelHi: '🎉 क्या बाहरी कार्यक्रम के लिए मौसम ठीक रहेगा?' },
-      { id: 'dec_family', label: '👨‍👩‍👧 Is it safe for my family outdoors?', labelHi: '👨‍👩‍👧 क्या परिवार के साथ बाहर जाना सुरक्षित है?' },
-      { id: 'dec_travel', label: '✈️ Is it suitable for travel?', labelHi: '✈️ क्या लंबी यात्रा के लिए मौसम अनुकूल है?' },
-      { id: 'dec_plan', label: '📅 How should I plan my day around the weather?', labelHi: '📅 मौसम के अनुसार दिन की योजना कैसे बनाएं?' },
-      { id: 'dec_risks', label: '⚠️ What weather risks should I know about?', labelHi: '⚠️ मुझे किन मौसम जोखिमों से सावधान रहना चाहिए?' },
-    ]
-  },
+ 
   {
     id: 'alertTypes',
     title: 'Which weather alerts are important to you?',
@@ -108,29 +47,96 @@ export default function PreferenceQuestions({ onCompleteQuestions, onBack }) {
 
   const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState({
-    usualDay: ['🏃 Exercise / Running', '💼 Office / Work', '🚗 Daily Commute / Transit'],
-    weatherFactors: ['🌧️ Rain & Thunderstorms', '🌡️ Temperature & Heat', '☀️ UV / Sun Exposure', '😷 Air Quality (AQI)'],
-    outdoorActivities: ['🏃 Running', '🚗 Commuting'],
-    decisionGoals: ['🏃 Is it a good time to exercise?', '🚗 Is it safe to travel or commute?', '📅 How should I plan my day around the weather?'],
-    alertTypes: ['🌧️ Heavy Rain', '⚡ Lightning / Thunderstorm', '😷 Poor Air Quality (AQI)']
+    usualDay: [],
+    weatherFactors: [],
+    decisionGoals: [],
+    customDecisions: [],
+    alertTypes: []
   });
+
+  // Custom question state for Question 3
+  const [customInput, setCustomInput] = useState('');
+  const [editingIndex, setEditingIndex] = useState(null);
+  const [editingText, setEditingText] = useState('');
 
   const question = QUESTIONS[currentStep];
   const currentSelections = answers[question.id] || [];
 
   const toggleOption = (optionLabel) => {
     const isSelected = currentSelections.includes(optionLabel);
-    let next = [];
-    if (isSelected) {
-      if (currentSelections.length > 1) {
-        next = currentSelections.filter(x => x !== optionLabel);
+
+    // Special handling for Alert Types "All important weather alerts"
+    if (question.id === 'alertTypes') {
+      const allLabel = isHindi ? '🚨 सभी महत्वपूर्ण मौसम चेतावनियाँ' : '🚨 All important weather alerts';
+      const isAllOption = optionLabel.includes('All important') || optionLabel.includes('सभी महत्वपूर्ण');
+
+      if (isAllOption) {
+        if (isSelected) {
+          setAnswers({ ...answers, alertTypes: [] });
+        } else {
+          // Select all options
+          const allOptionsLabels = question.options.map(opt => isHindi ? opt.labelHi : opt.label);
+          setAnswers({ ...answers, alertTypes: allOptionsLabels });
+        }
+        return;
       } else {
-        next = currentSelections;
+        let next = isSelected 
+          ? currentSelections.filter(x => x !== optionLabel && !x.includes('All important') && !x.includes('सभी महत्वपूर्ण'))
+          : [...currentSelections.filter(x => !x.includes('All important') && !x.includes('सभी महत्वपूर्ण')), optionLabel];
+        
+        // If all other alerts are selected, also add the "all" option
+        const otherOptions = question.options.filter(o => o.id !== 'al_all');
+        const otherLabels = otherOptions.map(o => isHindi ? o.labelHi : o.label);
+        const allSelected = otherLabels.every(l => next.includes(l));
+        if (allSelected) {
+          next = [...next, allLabel];
+        }
+        setAnswers({ ...answers, alertTypes: next });
+        return;
       }
-    } else {
-      next = [...currentSelections, optionLabel];
     }
+
+    // Default toggle for other questions (allow 0 to N selections)
+    const next = isSelected
+      ? currentSelections.filter(x => x !== optionLabel)
+      : [...currentSelections, optionLabel];
+    
     setAnswers({ ...answers, [question.id]: next });
+  };
+
+  // Custom decisions management for Question 3
+  const handleAddCustomQuestion = (e) => {
+    e?.preventDefault();
+    if (!customInput.trim()) return;
+    const nextCustom = [...(answers.customDecisions || []), customInput.trim()];
+    setAnswers({ ...answers, customDecisions: nextCustom });
+    setCustomInput('');
+  };
+
+  const handleDeleteCustomQuestion = (idx) => {
+    const nextCustom = (answers.customDecisions || []).filter((_, i) => i !== idx);
+    setAnswers({ ...answers, customDecisions: nextCustom });
+    if (editingIndex === idx) {
+      setEditingIndex(null);
+      setEditingText('');
+    }
+  };
+
+  const handleStartEdit = (idx, text) => {
+    setEditingIndex(idx);
+    setEditingText(text);
+  };
+
+  const handleSaveEdit = (idx) => {
+    if (!editingText.trim()) {
+      handleDeleteCustomQuestion(idx);
+      return;
+    }
+    const nextCustom = [...(answers.customDecisions || [])];
+    nextCustom[idx] = editingText.trim();
+    setAnswers({ ...answers, customDecisions: nextCustom });
+    setEditingIndex(null);
+    setEditingText('');
   };
 
   const handleNext = () => {
@@ -183,15 +189,15 @@ export default function PreferenceQuestions({ onCompleteQuestions, onBack }) {
           </p>
         </div>
 
-        <div className="space-y-1.5 flex-1 overflow-y-auto max-h-[52vh] pr-1 py-1">
+        <div className="space-y-2 flex-1 overflow-y-auto max-h-[52vh] pr-1 py-1">
           {question.options.map(opt => {
-            const isSelected = currentSelections.includes(opt.label);
             const displayLabel = isHindi ? opt.labelHi : opt.label;
+            const isSelected = currentSelections.includes(displayLabel) || currentSelections.includes(opt.label);
 
             return (
               <button
                 key={opt.id}
-                onClick={() => toggleOption(opt.label)}
+                onClick={() => toggleOption(displayLabel)}
                 className={`w-full p-2.5 rounded-mausam border text-left flex items-center justify-between text-xs transition-all ${
                   isSelected
                     ? 'bg-brand-light/80 border-brand text-slate-900 ring-1 ring-brand/30 shadow-2xs'
@@ -209,6 +215,107 @@ export default function PreferenceQuestions({ onCompleteQuestions, onBack }) {
               </button>
             );
           })}
+
+          {/* Interactive Custom Questions / Decision Goals Builder in Question 3 */}
+          {question.id === 'decisionGoals' && (
+            <div className="mt-4 pt-3 border-t border-slate-200 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11.5px] font-semibold text-slate-800">
+                  {isHindi ? '✨ अपने स्वयं के मौसम प्रश्न जोड़ें' : '✨ Add Your Custom Questions / Decisions'}
+                </span>
+                <span className="text-[10px] text-slate-400">
+                  {(answers.customDecisions || []).length} {isHindi ? 'प्रश्न' : 'custom'}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500">
+                {isHindi 
+                  ? 'उदा. "क्या सुबह 6 बजे दौड़ने जाना सुरक्षित है?", "क्या 5 बजे छाता ले जाना चाहिए?"'
+                  : 'e.g., "Is it safe to go jogging at 6 AM?", "Should I carry an umbrella at 5 PM?"'}
+              </p>
+
+              {/* Add Input Form */}
+              <form onSubmit={handleAddCustomQuestion} className="flex gap-1.5 pt-1">
+                <input
+                  type="text"
+                  value={customInput}
+                  onChange={(e) => setCustomInput(e.target.value)}
+                  placeholder={isHindi ? 'अपना व्यक्तिगत सवाल लिखें...' : 'Type your personalized decision question...'}
+                  className="flex-1 px-3 py-1.5 text-xs bg-white border border-slate-300 rounded focus:ring-1 focus:ring-brand focus:outline-none placeholder:text-slate-400"
+                />
+                <button
+                  type="submit"
+                  disabled={!customInput.trim()}
+                  className="px-3 py-1.5 bg-brand text-white text-xs font-medium rounded hover:bg-brand-dark disabled:opacity-50 flex items-center gap-1 transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>{isHindi ? 'जोड़ें' : 'Add'}</span>
+                </button>
+              </form>
+
+              {/* List of Custom Questions */}
+              {(answers.customDecisions || []).length > 0 && (
+                <div className="space-y-1.5 pt-1">
+                  {answers.customDecisions.map((customQ, idx) => (
+                    <div
+                      key={idx}
+                      className="p-2 rounded bg-emerald-50/70 border border-emerald-200/80 flex items-center justify-between gap-2 text-xs text-slate-800"
+                    >
+                      {editingIndex === idx ? (
+                        <div className="flex-1 flex gap-1.5">
+                          <input
+                            type="text"
+                            value={editingText}
+                            onChange={(e) => setEditingText(e.target.value)}
+                            className="flex-1 px-2 py-1 bg-white border border-slate-300 rounded text-xs focus:outline-none"
+                            autoFocus
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleSaveEdit(idx)}
+                            className="px-2 py-1 bg-emerald-600 text-white rounded text-[10.5px] font-medium"
+                          >
+                            Save
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingIndex(null)}
+                            className="px-2 py-1 bg-slate-200 text-slate-700 rounded text-[10.5px]"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex-1 min-w-0 flex items-start gap-1.5">
+                            <span className="text-emerald-600 font-bold">•</span>
+                            <span className="truncate font-medium text-slate-800">{customQ}</span>
+                          </div>
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => handleStartEdit(idx, customQ)}
+                              className="p-1 text-slate-500 hover:text-slate-800 rounded hover:bg-slate-200/60"
+                              title="Edit question"
+                            >
+                              <Edit2 className="w-3 h-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteCustomQuestion(idx)}
+                              className="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50"
+                              title="Delete question"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="pt-3 border-t border-slate-200 mt-3 flex items-center justify-between">

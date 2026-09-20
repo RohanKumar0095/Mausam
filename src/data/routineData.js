@@ -15,55 +15,79 @@ export const ACTIVITY_TYPES = [
   { id: 'other', label: 'Other Activity', icon: 'Clock', defaultDuration: 60, personaAffinity: [], sensitivities: {} }
 ];
 
+export const ROUTE_BASED_ACTIVITY_TYPES = [
+  'running',
+  'walking',
+  'cycling',
+  'commute',
+  'travel',
+  'outdoor_event'
+];
+
+export function isRouteBasedActivity(type) {
+  return ROUTE_BASED_ACTIVITY_TYPES.includes(type);
+}
+
 export const DEFAULT_ROUTINE = [
   {
     id: 'act-1',
     type: 'running',
     label: 'Morning Run',
-    startTime: '06:30',
-    endTime: '07:30',
-    location: 'Park — Gaya',
-    locationId: 'loc-gaya-park',
+    startTime: '06:30 AM',
+    endTime: '07:30 AM',
+    isRoute: true,
+    startLocation: 'Home Base',
+    endLocation: 'Local Park & Ground',
+    location: 'Home Base → Local Park & Ground',
+    locationId: 'user-primary-location',
     notes: 'Warmup & 5km aerobic run'
   },
   {
     id: 'act-2',
     type: 'college',
     label: 'College Classes & Lab',
-    startTime: '09:00',
-    endTime: '15:00',
-    location: 'Gaya College',
-    locationId: 'loc-gaya',
+    startTime: '09:00 AM',
+    endTime: '03:00 PM',
+    isRoute: false,
+    location: 'Academic / Workplace Campus',
+    locationId: 'user-primary-location',
     notes: 'Computer Science block'
   },
   {
     id: 'act-3',
     type: 'commute',
     label: 'Evening Commute',
-    startTime: '16:30',
-    endTime: '17:30',
-    location: 'Home → College Transit',
-    locationId: 'loc-gaya-commute',
+    startTime: '04:30 PM',
+    endTime: '05:30 PM',
+    isRoute: true,
+    startLocation: 'Academic Campus',
+    endLocation: 'Home Base',
+    location: 'Academic Campus → Home Base',
+    locationId: 'user-primary-location',
     notes: 'Two-wheeler / Bus transit'
   },
   {
     id: 'act-4',
     type: 'outdoor_event',
     label: 'Community Outdoor Event',
-    startTime: '19:00',
-    endTime: '21:00',
-    location: 'Gaya Gandhi Maidan',
-    locationId: 'loc-gaya',
+    startTime: '07:00 PM',
+    endTime: '09:00 PM',
+    isRoute: true,
+    startLocation: 'Home Base',
+    endLocation: 'Community Outdoor Ground',
+    location: 'Home Base → Community Outdoor Ground',
+    locationId: 'user-primary-location',
     notes: 'Cultural gathering & sports meetup'
   },
   {
     id: 'act-5',
     type: 'indoor',
     label: 'Night Relaxation',
-    startTime: '22:00',
-    endTime: '23:30',
-    location: 'Home — Gaya',
-    locationId: 'loc-gaya',
+    startTime: '10:00 PM',
+    endTime: '11:30 PM',
+    isRoute: false,
+    location: 'Home Base',
+    locationId: 'user-primary-location',
     notes: 'Rest & review'
   }
 ];

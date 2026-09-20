@@ -3,13 +3,21 @@ import {
   Play, 
   Pause 
 } from 'lucide-react';
+import { customLocationStore } from '../../data/customLocationStore';
 
-export default function RadarMapView({ weatherData }) {
+
+export default function RadarMapView({ weatherData, savedLocations = [] }) {
   const [isPlaying, setIsPlaying] = useState(true);
   const [selectedLayer, setSelectedLayer] = useState('radar');
   const [radarFrame, setRadarFrame] = useState(3);
 
   const frames = ['11:00 AM', '11:15 AM', '11:30 AM', '11:45 AM (Now)', '12:00 PM (Forecast)'];
+  const primaryName = weatherData?.name || weatherData?.district || 'Primary Ground';
+  const primaryTemp = weatherData?.current?.temp != null ? `${weatherData.current.temp}°C` : 'Live Feed';
+
+  const userLocations = savedLocations.length > 0 ? savedLocations : customLocationStore.getAllLocations();
+  const secondaryLocation = userLocations[1] ? userLocations[1].name : 'Regional Observation Zone';
+  const tertiaryLocation = userLocations[2] ? userLocations[2].name : 'Surrounding Activity Corridor';
 
   return (
     <div className="space-y-3 px-4 py-2 pb-24 text-white">
@@ -37,15 +45,15 @@ export default function RadarMapView({ weatherData }) {
 
         <div className="absolute top-20 left-28 z-10 flex items-center gap-1 text-[11px] font-mono text-white drop-shadow">
           <div className="w-2 h-2 rounded-full bg-amber-400" />
-          <span>Gaya (28°C)</span>
+          <span>📍 {primaryName} ({primaryTemp})</span>
         </div>
         <div className="absolute top-12 left-44 z-10 flex items-center gap-1 text-[11px] font-mono text-white drop-shadow">
           <div className="w-2 h-2 rounded-full bg-rose-400" />
-          <span>Patna (Rain Echo)</span>
+          <span>{secondaryLocation} (Precip Echo)</span>
         </div>
         <div className="absolute bottom-16 right-20 z-10 flex items-center gap-1 text-[11px] font-mono text-white drop-shadow">
           <div className="w-2 h-2 rounded-full bg-emerald-400" />
-          <span>Ranchi BIT (25°C)</span>
+          <span>{tertiaryLocation}</span>
         </div>
 
         <div className="relative z-10 flex items-center justify-between">
@@ -71,7 +79,7 @@ export default function RadarMapView({ weatherData }) {
           </div>
 
           <span className="text-[10px] font-mono bg-slate-900/80 px-2 py-1 rounded border border-white/20 text-sky-200">
-            IMD DWR Patna-Ranchi
+            IMD Doppler Weather Radar
           </span>
         </div>
 

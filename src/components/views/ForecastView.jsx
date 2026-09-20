@@ -44,76 +44,89 @@ export default function ForecastView({ weatherData, routine = [] }) {
           </span>
         </div>
 
-        <div className="space-y-2">
-          {hourly.slice(0, 6).map((h, i) => (
-            <div
-              key={i}
-              className="p-2.5 rounded-mausam bg-white/10 backdrop-blur-md border border-white/15 flex items-center justify-between gap-2 shadow-xs"
-            >
-              <div className="flex items-center gap-2.5 min-w-[75px]">
-                <span className="text-xs font-mono font-medium text-sky-100">{h.time}</span>
-                <span className="text-lg">🌤️</span>
-              </div>
+        {hourly.length > 0 ? (
+          <div className="space-y-2">
+            {hourly.slice(0, 6).map((h, i) => (
+              <div
+                key={i}
+                className="p-2.5 rounded-mausam bg-white/10 backdrop-blur-md border border-white/15 flex items-center justify-between gap-2 shadow-xs"
+              >
+                <div className="flex items-center gap-2.5 min-w-[75px]">
+                  <span className="text-xs font-mono font-medium text-sky-100">{h.time}</span>
+                  <span className="text-lg">🌤️</span>
+                </div>
 
-              <div className="flex-1 min-w-0">
-                <span className="text-xs font-medium block truncate text-white">
-                  {h.label || h.condition}
-                </span>
-                <span className="text-[10.5px] text-sky-200 block truncate">
-                  {t('hero_humidity')} {h.humidity}% • {h.rainMm || '0.0 mm'}
-                </span>
-              </div>
+                <div className="flex-1 min-w-0">
+                  <span className="text-xs font-medium block truncate text-white">
+                    {h.label || h.condition}
+                  </span>
+                  <span className="text-[10.5px] text-sky-200 block">
+                    {isHindi ? 'वर्षा की संभावना' : 'Precipitation'}: {h.pop}% • {h.rainMm}
+                  </span>
+                </div>
 
-              <div className="text-right flex-shrink-0">
-                <span className="text-sm font-bold block text-white">{h.temp}°C</span>
-                <span className="text-[10.5px] text-sky-300 block font-mono">{h.pop}% 💧</span>
+                <div className="text-right">
+                  <span className="text-sm font-semibold text-white">{h.temp}°C</span>
+                  <span className="text-[10px] text-sky-200 block font-mono">{h.humidity}% {t('hero_humidity')}</span>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="p-4 rounded-mausam bg-white/10 backdrop-blur-md border border-white/15 text-center text-xs text-sky-200">
+            {isHindi ? 'लाइव 3-घंटे का पूर्वानुमान सिंक होने पर यहाँ प्रदर्शित होगा।' : 'Live 3-hourly forecast will appear once live weather data is synced.'}
+          </div>
+        )}
       </div>
 
-      {/* 7-Day Outlook */}
+      {/* 7-Day Daily Forecast Section */}
       <div>
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-1.5">
             <Calendar className="w-4 h-4 text-sky-300" />
             <h3 className="text-sm font-semibold uppercase tracking-wider text-sky-100">
-              {t('hero_7day_outlook')}
+              {t('hero_7_day_outlook')}
             </h3>
           </div>
           <span className="text-[11px] text-sky-200/80 font-mono">
-            {t('hero_trend_min_max')}
+            {t('hero_imd_model')}
           </span>
         </div>
 
-        <div className="space-y-2">
-          {daily.map((d, i) => (
-            <div
-              key={i}
-              className="p-2.5 rounded-mausam bg-white/10 backdrop-blur-md border border-white/15 flex items-center justify-between gap-2 shadow-xs"
-            >
-              <div className="min-w-[80px]">
-                <span className="text-xs font-medium block text-white">{d.day}</span>
-                <span className="text-[10px] text-sky-200 font-mono block">{d.date}</span>
-              </div>
+        {daily.length > 0 ? (
+          <div className="space-y-2">
+            {daily.map((d, i) => (
+              <div
+                key={i}
+                className="p-2.5 rounded-mausam bg-white/10 backdrop-blur-md border border-white/15 flex items-center justify-between gap-2 shadow-xs"
+              >
+                <div className="min-w-[70px]">
+                  <span className="text-xs font-semibold block text-white">{d.day}</span>
+                  <span className="text-[10px] text-sky-200 font-mono">{d.date}</span>
+                </div>
 
-              <div className="flex-1 min-w-0 flex items-center gap-2">
-                <span className="text-lg">🌧️</span>
-                <span className="text-xs text-sky-100 truncate">{d.condition}</span>
-              </div>
+                <div className="flex-1 min-w-0 px-2 text-center">
+                  <span className="text-xs text-sky-100 block truncate">
+                    {d.condition}
+                  </span>
+                  <span className="text-[10.5px] text-sky-300 font-mono">
+                    {d.pop}% {isHindi ? 'वर्षा' : 'Rain'}
+                  </span>
+                </div>
 
-              <div className="text-right flex-shrink-0">
-                <span className="text-xs font-bold text-white">
-                  {d.minTemp}° / {d.maxTemp}°C
-                </span>
-                <span className="text-[10.5px] text-sky-300 block font-mono">
-                  {d.pop}% {isHindi ? 'बारिश' : 'Rain'}
-                </span>
+                <div className="text-right min-w-[65px]">
+                  <span className="text-xs font-semibold text-white">
+                    {d.minTemp}° / {d.maxTemp}°
+                  </span>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="p-4 rounded-mausam bg-white/10 backdrop-blur-md border border-white/15 text-center text-xs text-sky-200">
+            {isHindi ? 'लाइव 7-दिवसीय पूर्वानुमान सिंक होने पर यहाँ प्रदर्शित होगा।' : 'Live 7-day forecast will appear once live weather data is synced.'}
+          </div>
+        )}
       </div>
 
       {/* Sun & Moon Timings */}

@@ -59,15 +59,33 @@ export function calculateWidgetScore({
       if (isSport) { personaPoints += 26; breakdownReasons.push('Sportsperson turf traction index (+26)'); }
       if (isEvents) { personaPoints += 10; breakdownReasons.push('Outdoor venue surface check (+10)'); }
       break;
+    case 'lightning_storm_safety':
+      if (isSport) { personaPoints += 30; breakdownReasons.push('Sportsperson storm safety alert (+30)'); }
+      if (isEvents) { personaPoints += 15; breakdownReasons.push('Outdoor event lightning check (+15)'); }
+      break;
 
     case 'running_window':
       if (isFitness) { personaPoints += 30; breakdownReasons.push('Fitness workout preference (+30)'); }
       if (isSport) { personaPoints += 12; breakdownReasons.push('Conditioning hours check (+12)'); }
       if (isHealth) { personaPoints += 10; breakdownReasons.push('Outdoor aerobic exercise (+10)'); }
       break;
+    case 'exercise_comfort_index':
+      if (isFitness) { personaPoints += 28; breakdownReasons.push('Exercise comfort rating (+28)'); }
+      if (isHealth) { personaPoints += 14; breakdownReasons.push('Health exertion safety (+14)'); }
+      break;
+    case 'outdoor_exercise_aqi':
+      if (isFitness) { personaPoints += 26; breakdownReasons.push('AQI exertion guidance (+26)'); }
+      if (isHealth) { personaPoints += 20; breakdownReasons.push('Respiratory outdoor risk (+20)'); }
+      break;
+    case 'workout_recommendation':
+      if (isFitness) { personaPoints += 28; breakdownReasons.push('Workout recommendation (+28)'); }
+      break;
 
     case 'agri_action_checklist':
       if (isAgri) { personaPoints += 30; breakdownReasons.push('Agriculture crop management (+30)'); }
+      break;
+    case 'crop_stage_risk':
+      if (isAgri) { personaPoints += 28; breakdownReasons.push('Crop growth stage vulnerability (+28)'); }
       break;
     case 'multi_day_rainfall':
       if (isAgri) { personaPoints += 28; breakdownReasons.push('Agriculture multi-day rainfall trend (+28)'); }
@@ -99,9 +117,18 @@ export function calculateWidgetScore({
       if (isFamily) { personaPoints += 10; breakdownReasons.push('Family transit protection (+10)'); }
       if (isDaily) { personaPoints += 8; breakdownReasons.push('Daily travel advisory (+8)'); }
       break;
+    case 'morning_commute_conditions':
+      if (isCommute) { personaPoints += 28; breakdownReasons.push('Morning commute window (+28)'); }
+      break;
+    case 'return_commute_conditions':
+      if (isCommute) { personaPoints += 28; breakdownReasons.push('Return commute window (+28)'); }
+      break;
     case 'visibility_fog':
       if (isCommute) { personaPoints += 25; breakdownReasons.push('Highway & transit visibility (+25)'); }
       if (isTravel) { personaPoints += 15; breakdownReasons.push('Flight & intercity visibility (+15)'); }
+      break;
+    case 'two_wheeler_risk':
+      if (isCommute) { personaPoints += 28; breakdownReasons.push('Two-wheeler weather exposure (+28)'); }
       break;
 
     case 'aqi_health':
@@ -116,19 +143,62 @@ export function calculateWidgetScore({
       if (isSport) { personaPoints += 16; breakdownReasons.push('Matchday sun exposure (+16)'); }
       if (isAgri) { personaPoints += 14; breakdownReasons.push('Field worker sun protection (+14)'); }
       break;
+    case 'humidity_health_impact':
+      if (isHealth) { personaPoints += 28; breakdownReasons.push('Humidity health impact (+28)'); }
+      if (isFitness) { personaPoints += 14; breakdownReasons.push('Humidity discomfort (+14)'); }
+      break;
+    case 'relative_environmental_context':
+      if (isHealth) { personaPoints += 26; breakdownReasons.push('Relative environmental context (+26)'); }
+      if (isDaily) { personaPoints += 10; breakdownReasons.push('Comparative weather trend (+10)'); }
+      break;
 
     case 'school_transit':
-      if (isFamily) { personaPoints += 30; breakdownReasons.push('Family school transit shield (+30)'); }
+      if (isFamily) { personaPoints += 30; breakdownReasons.push('Family school drop-off shield (+30)'); }
       if (isCommute) { personaPoints += 10; breakdownReasons.push('Morning rush-hour coordination (+10)'); }
+      break;
+    case 'school_pickup_weather':
+      if (isFamily) { personaPoints += 28; breakdownReasons.push('School pickup window (+28)'); }
+      break;
+    case 'family_weather_alerts':
+      if (isFamily) { personaPoints += 30; breakdownReasons.push('Family weather alerts (+30)'); }
+      break;
+    case 'advance_severe_warning':
+      if (isFamily) { personaPoints += 28; breakdownReasons.push('Advance severe weather warning (+28)'); }
+      if (isCommute) { personaPoints += 12; breakdownReasons.push('Transit advance warning (+12)'); }
+      break;
+    case 'child_safety_recommendations':
+      if (isFamily) { personaPoints += 28; breakdownReasons.push('Child safety recommendations (+28)'); }
       break;
 
     case 'outdoor_event_suitability':
       if (isEvents) { personaPoints += 30; breakdownReasons.push('Outdoor event feasibility (+30)'); }
       if (isFamily) { personaPoints += 10; breakdownReasons.push('Weekend family outing (+10)'); }
       break;
+    case 'event_forecast_timeline':
+      if (isEvents) { personaPoints += 28; breakdownReasons.push('Event extended forecast timeline (+28)'); }
+      break;
+    case 'event_comfort_index':
+      if (isEvents) { personaPoints += 26; breakdownReasons.push('Event-time comfort index (+26)'); }
+      break;
+    case 'event_wind_conditions':
+      if (isEvents) { personaPoints += 26; breakdownReasons.push('Event wind exposure check (+26)'); }
+      if (isSport) { personaPoints += 12; breakdownReasons.push('Crosswind check (+12)'); }
+      break;
+    case 'event_contingency_backup':
+      if (isEvents) { personaPoints += 30; breakdownReasons.push('Event rain contingency backup (+30)'); }
+      break;
 
     case 'travel_conditions':
       if (isTravel) { personaPoints += 30; breakdownReasons.push('Travel destination conditions (+30)'); }
+      break;
+    case 'saved_destination_weather':
+      if (isTravel) { personaPoints += 28; breakdownReasons.push('Saved multi-destination weather (+28)'); }
+      break;
+    case 'travel_disruption_alerts':
+      if (isTravel) { personaPoints += 30; breakdownReasons.push('Travel disruption alerts (+30)'); }
+      break;
+    case 'smart_packing_checklist':
+      if (isTravel) { personaPoints += 26; breakdownReasons.push('Smart packing checklist (+26)'); }
       break;
     case 'coastal_tide':
       if (isTravel) { personaPoints += 28; breakdownReasons.push('Coastal tide & sea breeze (+28)'); }
@@ -150,6 +220,7 @@ export function calculateWidgetScore({
     default:
       personaPoints = 10;
   }
+
 
   // Filter out specialized widgets if 0 persona points
   const isSpecialized = [

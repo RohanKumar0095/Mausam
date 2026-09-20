@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu, Search, MapPin, ChevronDown } from 'lucide-react';
+import { Menu, Search, MapPin, ChevronDown, Bell } from 'lucide-react';
 import { useI18n } from '../../i18n/i18nContext';
 
 export default function Header({
@@ -9,7 +9,9 @@ export default function Header({
   onOpenDrawer,
   briefingText,
   currentTime,
-  onOpenSearch
+  onOpenSearch,
+  activeAlertCount = 0,
+  onOpenAlertCenter
 }) {
   const { t } = useI18n();
 
@@ -36,16 +38,35 @@ export default function Header({
           </div>
         </div>
 
-        <button
-          onClick={onOpenLocationPicker}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-white/15 hover:bg-white/25 rounded-full backdrop-blur-md transition-all border border-white/20 text-xs shadow-xs"
-        >
-          <MapPin className="w-3.5 h-3.5 text-sky-300 flex-shrink-0" />
-          <span className="font-medium max-w-[130px] truncate text-white">
-            {locationData?.name || 'Gaya'}
-          </span>
-          <ChevronDown className="w-3 h-3 text-sky-300 flex-shrink-0" />
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Notification Bell Button */}
+          {onOpenAlertCenter && (
+            <button
+              onClick={onOpenAlertCenter}
+              className="p-1.5 rounded-full bg-white/15 hover:bg-white/25 border border-white/20 relative transition-all shadow-xs"
+              title="Alert Center"
+            >
+              <Bell className="w-4 h-4 text-sky-200" />
+              {activeAlertCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center animate-pulse">
+                  {activeAlertCount}
+                </span>
+              )}
+            </button>
+          )}
+
+          {/* Location Selector Button */}
+          <button
+            onClick={onOpenLocationPicker}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-white/15 hover:bg-white/25 rounded-full backdrop-blur-md transition-all border border-white/20 text-xs shadow-xs"
+          >
+            <MapPin className="w-3.5 h-3.5 text-sky-300 flex-shrink-0" />
+            <span className="font-medium max-w-[120px] truncate text-white">
+              {locationData?.name || locationData?.city || locationData?.district || 'My Location'}
+            </span>
+            <ChevronDown className="w-3 h-3 text-sky-300 flex-shrink-0" />
+          </button>
+        </div>
       </div>
 
       {/* Daily Briefing Banner */}

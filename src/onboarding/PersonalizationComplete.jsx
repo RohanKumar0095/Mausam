@@ -2,12 +2,19 @@ import React from 'react';
 import { Sparkles, Check, ArrowRight, ShieldCheck } from 'lucide-react';
 import { PERSONAS } from '../data/personaDefinitions';
 import { useI18n } from '../i18n/i18nContext';
+import { authService } from '../auth/authService';
+import { getStep1Personas } from '../engine/personaDerivationEngine';
 
-export default function PersonalizationComplete({ derivedPersonas = [], routine = [], onOpenMausam }) {
+export default function PersonalizationComplete({ derivedPersonas = [], preferences = null, routine = [], onOpenMausam }) {
   const { language, t } = useI18n();
   const isHindi = language === 'hi';
 
-  const personaCards = PERSONAS.filter(p => derivedPersonas.includes(p.id));
+  // Single Source of Truth: Retrieve persona(s) explicitly selected in Step 1
+  const savedPref = preferences || authService.getSavedPreferences();
+  const step1PersonaIds = getStep1Personas(savedPref);
+
+  // Display ONLY the Step 1 selected Weather Persona(s)
+  const personaCards = PERSONAS.filter(p => step1PersonaIds.includes(p.id));
 
   return (
     <div className="min-h-screen bg-[#F4F8FB] flex flex-col justify-between p-4 sm:p-6 text-slate-800">
@@ -60,19 +67,25 @@ export default function PersonalizationComplete({ derivedPersonas = [], routine 
                 {routine.length} {isHindi ? 'गतिविधियाँ' : 'slots'}
               </span>
             </div>
-            <div className="space-y-1 text-xs text-slate-700">
-              {routine.slice(0, 3).map(act => (
-                <div key={act.id} className="flex items-center justify-between text-[11.5px]">
-                  <span className="font-medium truncate">{act.label}</span>
-                  <span className="font-mono text-slate-500 text-[10px]">{act.startTime}–{act.endTime}</span>
-                </div>
-              ))}
-              {routine.length > 3 && (
-                <span className="text-[10px] text-slate-400 block pt-0.5 font-mono">
-                  {t('complete_more_slots')}
-                </span>
-              )}
-            </div>
+            {routine.length > 0 ? (
+              <div className="space-y-1 text-xs text-slate-700">
+                {routine.slice(0, 3).map(act => (
+                  <div key={act.id} className="flex items-center justify-between text-[11.5px]">
+                    <span className="font-medium truncate">{act.label}</span>
+                    <span className="font-mono text-slate-500 text-[10px]">{act.startTime}–{act.endTime}</span>
+                  </div>
+                ))}
+                {routine.length > 3 && (
+                  <span className="text-[10px] text-slate-400 block pt-0.5 font-mono">
+                    {t('complete_more_slots')}
+                  </span>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-500 italic">
+                {isHindi ? 'दैनिक दिनचर्या अभी निर्धारित नहीं की गई है (वैकल्पिक)' : 'Daily routine not configured (Optional)'}
+              </p>
+            )}
           </div>
 
           <div className="bg-brand-light/70 p-3 rounded-mausam border border-brand/20 text-xs text-brand space-y-1">

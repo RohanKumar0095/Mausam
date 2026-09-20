@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, ShieldAlert, Smartphone, Monitor, RotateCcw, Globe } from 'lucide-react';
+import { Clock, ShieldAlert, Smartphone, Monitor, RotateCcw, Globe, Sparkles } from 'lucide-react';
 import { PRESET_PROFILES } from '../../data/presetProfiles';
 import { useI18n } from '../../i18n/i18nContext';
 
@@ -12,7 +12,8 @@ export default function DemoControlBar({
   onToggleSevereAlert,
   isMobileFramed,
   onToggleFrame,
-  onResetOnboarding
+  onResetOnboarding,
+  onOpenChat
 }) {
   const { language, setLanguage, t } = useI18n();
   const isHindi = language === 'hi';
@@ -83,6 +84,16 @@ export default function DemoControlBar({
       </div>
 
       <div className="flex items-center gap-2 flex-wrap">
+        {/* Ask Assistant Quick Launch Button for SIH Judges */}
+        <button
+          onClick={onOpenChat}
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-gradient-to-r from-[#D85A30] to-[#b84a24] text-white font-semibold text-xs border border-amber-300/40 shadow-sm hover:scale-105 active:scale-95 transition-all"
+          title="Open Personalized Weather Assistant"
+        >
+          <Sparkles className="w-3.5 h-3.5 text-amber-200 fill-amber-200" />
+          <span>{isHindi ? 'सहायक से पूछें' : 'Ask Assistant'}</span>
+        </button>
+
         {/* Simulate Red Alert Button */}
         <button
           onClick={onToggleSevereAlert}

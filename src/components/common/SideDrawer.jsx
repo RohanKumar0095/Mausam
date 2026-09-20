@@ -62,7 +62,7 @@ export default function SideDrawer({
                 {currentUser ? (currentUser.userId || 'rohan_weather') : t('drawer_guest_user')}
               </h4>
               <p className="text-[11px] text-sky-200 truncate">
-                📍 {currentLocation.name || 'Gaya'}
+                📍 {currentLocation.name || currentLocation.city || currentLocation.district || 'My Location'}
               </p>
             </div>
           </div>
