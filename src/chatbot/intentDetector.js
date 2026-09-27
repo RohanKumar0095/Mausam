@@ -46,20 +46,22 @@ export function detectIntent(query = '', language = 'en') {
   }
 
   // 3. Activity-Specific Recommendation Queries (Type C - Activity Recommendation)
-  // Must match explicit activity requests: running, travel, indoor study, sports, training, commute
+  // Must match explicit activity requests: running, travel, indoor study, sports, training, commute, hangout
+  const isHangoutQuery = q.includes('hang out') || q.includes('hangout') || q.includes('outing') || q.includes('hang-out') || q.includes('घूमने') || q.includes('हैंगआउट');
   const isTravelQuery = q.includes('travel') || q.includes('commute') || q.includes('trip') || q.includes('drive') || q.includes('सफर') || q.includes('यात्रा');
   const isIndoorQuery = q.includes('indoor') || q.includes('study') || q.includes('work from home') || q.includes('पढ़ाई') || q.includes('इनडोर');
   const isRunningQuery = q.includes('run') || q.includes('jog') || q.includes('running') || q.includes('दौड़');
   const isSportQuery = q.includes('football') || q.includes('cricket') || q.includes('soccer') || q.includes('cycling') || q.includes('sports') || q.includes('train') || q.includes('practice') || q.includes('अभ्यास') || q.includes('खेल');
 
   if (
-    q.includes('should i') || q.includes('can i') || q.includes('is it safe to') ||
+    q.includes('should i') || q.includes('can i') || q.includes('is it safe to') || q.includes('is the weather favorable') || q.includes('weather favorable') ||
     q.includes('train now') || q.includes('compare with my routine') || q.includes('routine') ||
-    isTravelQuery || isIndoorQuery || (isRunningQuery && (q.includes('should') || q.includes('can') || q.includes('today') || q.includes('tomorrow'))) ||
+    isHangoutQuery || isTravelQuery || isIndoorQuery || (isRunningQuery && (q.includes('should') || q.includes('can') || q.includes('today') || q.includes('tomorrow'))) ||
     (isSportQuery && (q.includes('should') || q.includes('can') || q.includes('today') || q.includes('tomorrow') || q.includes('at')))
   ) {
     let targetActivityType = 'sports';
-    if (isTravelQuery) targetActivityType = 'travel';
+    if (isHangoutQuery) targetActivityType = 'hangout';
+    else if (isTravelQuery) targetActivityType = 'travel';
     else if (isIndoorQuery) targetActivityType = 'indoor';
     else if (isRunningQuery) targetActivityType = 'running';
 
@@ -74,7 +76,7 @@ export function detectIntent(query = '', language = 'en') {
       type: 'activity_recommendation',
       targetActivityType,
       targetSport,
-      requestedTime: q.includes('tomorrow') || q.includes('कल') ? '10:00' : (q.includes('evening') || q.includes('शाम') ? '17:00' : 'now'),
+      requestedTime: q.includes('tomorrow') || q.includes('कल') ? '10:00' : (q.includes('evening') || q.includes('शाम') ? '18:00' : 'now'),
       isIrregularQuery: q.includes('train now') || q.includes('compare') || q.includes('now instead')
     };
   }

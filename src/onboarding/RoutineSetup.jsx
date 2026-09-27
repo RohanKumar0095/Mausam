@@ -242,7 +242,7 @@ export default function RoutineSetup({ onContinueRoutine, onBack }) {
                     >
                       {savedLocations.map(loc => (
                         <option key={`start-${loc.id}`} value={loc.id}>
-                          📍 {loc.name} {loc.purpose ? `(${loc.purpose})` : ''}
+                          📍 {loc.name}
                         </option>
                       ))}
                     </select>
@@ -259,7 +259,7 @@ export default function RoutineSetup({ onContinueRoutine, onBack }) {
                     >
                       {savedLocations.map(loc => (
                         <option key={`end-${loc.id}`} value={loc.id}>
-                          📍 {loc.name} {loc.purpose ? `(${loc.purpose})` : ''}
+                          📍 {loc.name}
                         </option>
                       ))}
                     </select>
@@ -277,7 +277,7 @@ export default function RoutineSetup({ onContinueRoutine, onBack }) {
                   >
                     {savedLocations.map(loc => (
                       <option key={loc.id} value={loc.id}>
-                        📍 {loc.name} ({loc.purpose || 'Saved'})
+                        📍 {loc.name}
                       </option>
                     ))}
                   </select>

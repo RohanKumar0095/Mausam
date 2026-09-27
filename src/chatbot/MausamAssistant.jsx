@@ -112,6 +112,7 @@ export default function MausamAssistant({
   // Quick Action Buttons tailored for Sportsperson
   const quickActions = isHindi ? [
     { label: 'क्या मैं अभी अभ्यास करूँ?', query: 'I want to train now instead. Is it okay?' },
+    { label: 'शाम का हैंगआउट?', query: 'I want to hang out in the evening today. Is the weather favorable?' },
     { label: 'इष्टतम प्रशिक्षण समय', query: 'What time is best for training today?' },
     { label: 'प्रशिक्षण में बारिश?', query: 'Will it rain during my training?' },
     { label: 'गर्मी और WBGT जोखिम', query: 'Should I carry extra water and what is the heat risk?' },
@@ -120,6 +121,7 @@ export default function MausamAssistant({
     { label: 'दिनचर्या से तुलना', query: 'Compare with my routine' }
   ] : [
     { label: 'Train now?', query: 'I want to train now instead. Is it okay?' },
+    { label: 'Evening hangout?', query: 'I want to hang out in the evening today. Is the weather favorable?' },
     { label: 'Best training time', query: 'What time is best for training today?' },
     { label: 'Rain during training?', query: 'Will it rain during my training?' },
     { label: 'Heat & WBGT risk', query: 'Should I carry extra water and what is the heat risk?' },

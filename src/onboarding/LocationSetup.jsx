@@ -136,9 +136,6 @@ export default function LocationSetup({ onContinueLocations, onBack }) {
                       </span>
                     </div>
                     <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500 mt-1">
-                      <span className="bg-white px-1.5 py-0.2 rounded border border-slate-200 text-brand font-medium">
-                        🏷️ {loc.purpose}
-                      </span>
                       <span className="truncate">
                         {loc.area ? `${loc.area}, ` : ''}
                         {loc.city ? `${loc.city}, ` : ''}

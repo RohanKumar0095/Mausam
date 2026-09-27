@@ -239,7 +239,7 @@ export default function RoutineEditorModal({ isOpen, onClose, routine = [], onSa
                   >
                     {availableLocations.map(loc => (
                       <option key={`start-${loc.id}`} value={loc.id}>
-                        📍 {loc.name} {loc.purpose ? `(${loc.purpose})` : ''}
+                        📍 {loc.name}
                       </option>
                     ))}
                   </select>
@@ -263,7 +263,7 @@ export default function RoutineEditorModal({ isOpen, onClose, routine = [], onSa
                   >
                     {availableLocations.map(loc => (
                       <option key={`end-${loc.id}`} value={loc.id}>
-                        📍 {loc.name} {loc.purpose ? `(${loc.purpose})` : ''}
+                        📍 {loc.name}
                       </option>
                     ))}
                   </select>
@@ -296,7 +296,7 @@ export default function RoutineEditorModal({ isOpen, onClose, routine = [], onSa
                 >
                   {availableLocations.map(loc => (
                     <option key={loc.id} value={loc.id}>
-                      📍 {loc.name} {loc.purpose ? `(${loc.purpose})` : ''}
+                      📍 {loc.name}
                     </option>
                   ))}
                 </select>
