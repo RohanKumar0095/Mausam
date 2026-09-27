@@ -159,6 +159,116 @@ export function generateChatbotResponse(query = '', context = {}) {
     console.log('[CHAT_PIPELINE] Executing TIER 3: ACTIVITY_RECOMMENDATION | Type:', intent.targetActivityType);
     const actType = intent.targetActivityType || 'sports';
 
+    // SPECIALIZED ROUTING 0: OUTDOOR EVENING HANGOUT & LEISURE
+    if (actType === 'hangout') {
+      const locName = normWeather.locationName || (isHindi ? 'वर्तमान स्थान' : 'your location');
+      const tempVal = normWeather.temperature != null ? `${normWeather.temperature}°C` : '26°C';
+      const feelsVal = normWeather.feelsLike != null ? `${normWeather.feelsLike}°C` : tempVal;
+      const pop = normWeather.precipitationProbability != null ? normWeather.precipitationProbability : 15;
+      const popVal = `${pop}%`;
+      const windVal = normWeather.windSpeed != null ? `${normWeather.windSpeed} km/h` : '10 km/h';
+      const cond = normWeather.condition || (isHindi ? 'साफ मौसम' : 'Partly Cloudy');
+      
+      const isThunder = (cond || '').toLowerCase().includes('thunder') || 
+                        (cond || '').toLowerCase().includes('storm') ||
+                        (cond || '').toLowerCase().includes('lightning');
+      const isSevere = context.safetyInfo?.isSevere || isThunder;
+
+      // Case 1: Severe Weather / Thunderstorm Hazard
+      if (isSevere) {
+        return {
+          answer: isHindi
+            ? `⚠️ आज शाम ${locName} में हैंगआउट के लिए मौसम प्रतिकूल और असुरक्षित है।`
+            : `⚠️ Conditions are not favorable for an evening hangout at ${locName} due to severe weather risks.`,
+          why: isHindi
+            ? `आंधी-तूफान, बिजली गिरने या भारी बारिश की चेतावनी सक्रिय है (${context.safetyInfo?.headline || 'गंभीर मौसम'}).`
+            : `Severe weather warning is in effect (${context.safetyInfo?.headline || 'Thunderstorm / squall risk'}). Outdoor leisure poses safety risks.`,
+          action: isHindi
+            ? 'बाहरी हैंगआउट स्थगित करें और इनडोर सुरक्षित स्थानों का चयन करें।'
+            : 'Postpone outdoor hangout plans and choose a safe indoor venue.',
+          safety: isHindi ? '⚠️ गंभीर मौसम चेतावनी' : '⚠️ Severe Weather Alert',
+          metrics: {
+            temp: tempVal,
+            rainProb: popVal,
+            wind: windVal,
+            groundCondition: isHindi ? 'असुरक्षित' : 'Hazardous'
+          },
+          ruleTriggered: 'EVENING_HANGOUT_SEVERE_OVERRIDE',
+          disclaimer: isHindi ? 'IMD गंभीर मौसम सुरक्षा प्रोटोकॉल।' : 'IMD Severe Weather Safety Protocol.'
+        };
+      }
+
+      // Case 2: High Rain Risk (>= 50%)
+      if (pop >= 50 || (cond || '').toLowerCase().includes('rain')) {
+        return {
+          answer: isHindi
+            ? `आज शाम ${locName} में हैंगआउट के लिए स्थितियां अनुकूल नहीं हो सकती हैं क्योंकि बारिश की संभावना (${popVal}) है।`
+            : `Conditions may not be ideal for an evening hangout at ${locName} because rain is likely (${popVal} chance).`,
+          why: isHindi
+            ? `शाम के समय ${cond} और ${popVal} वर्षा का जोखिम रहेगा। तापमान लगभग ${tempVal} (महसूस: ${feelsVal}) रहेगा।`
+            : `Evening forecast indicates ${cond} with a ${popVal} precipitation chance. Temperature will be around ${tempVal} (feels like ${feelsVal}).`,
+          action: isHindi
+            ? 'इनडोर कैफे/मॉल की योजना बनाएं या साथ में छाता/रेनकोट अवश्य रखें।'
+            : 'Consider an indoor hangout plan (cafe/mall) or carry rain gear if going outdoors.',
+          safety: isHindi ? 'सावधानी — वर्षा का जोखिम' : 'Caution — Rain Likely',
+          metrics: {
+            temp: tempVal,
+            rainProb: popVal,
+            wind: windVal,
+            groundCondition: isHindi ? 'गीली सड़कें / फिसलन' : 'Damp / Wet Surface'
+          },
+          ruleTriggered: 'EVENING_HANGOUT_RAIN_RISK',
+          disclaimer: isHindi ? 'शाम के मौसम व वर्षा पूर्वानुमान पर आधारित।' : 'Based on evening precipitation forecast.'
+        };
+      }
+
+      // Case 3: Moderate Rain / High Wind Caution (30% - 49% pop or high wind)
+      if (pop >= 30 || (normWeather.windSpeed != null && normWeather.windSpeed >= 25)) {
+        return {
+          answer: isHindi
+            ? `शाम के हैंगआउट के लिए मौसम मध्यम अनुकूल है, हल्की बौछारों (${popVal}) की संभावना है।`
+            : `Weather is moderately favorable for an evening hangout at ${locName}, with a slight chance of scattered showers (${popVal}).`,
+          why: isHindi
+            ? `तापमान ${tempVal} आरामदायक रहेगा, हवा की गति ${windVal} है। मौसम ज्यादातर सुहावना रहेगा।`
+            : `Comfortable temperature of ${tempVal} (feels like ${feelsVal}) with ${windVal} breeze. Scattered clouds expected.`,
+          action: isHindi
+            ? 'आप बाहर जा सकते हैं, पर हल्का छाता साथ रखना सुरक्षित रहेगा।'
+            : 'You can proceed with an outdoor hangout, but keep a light umbrella handy.',
+          safety: null,
+          metrics: {
+            temp: tempVal,
+            rainProb: popVal,
+            wind: windVal,
+            groundCondition: isHindi ? 'सामान्य' : 'Normal / Stable'
+          },
+          ruleTriggered: 'EVENING_HANGOUT_MODERATE_CONDITIONS',
+          disclaimer: isHindi ? 'शाम के मौसम विश्लेषण पर आधारित।' : 'Based on evening outdoor comfort analysis.'
+        };
+      }
+
+      // Case 4: Favorable Weather (pop < 30%)
+      return {
+        answer: isHindi
+          ? `हाँ, आज शाम ${locName} में हैंगआउट के लिए मौसम पूरी तरह अनुकूल है।`
+          : `Yes, the weather looks favorable for an evening hangout at ${locName}.`,
+        why: isHindi
+          ? `तापमान ${tempVal} सुखद रहेगा और बारिश की संभावना बहुत कम (${popVal}) है। हवा की गति ${windVal} शांत है।`
+          : `Temperatures will be comfortable at ${tempVal} (feels like ${feelsVal}) with a low chance of rain (${popVal}) and pleasant winds (${windVal}).`,
+        action: isHindi
+          ? 'पार्क, रूफटॉप या खुले स्थानों में शाम बिताने के लिए बेहतरीन समय है। अपने समय का आनंद लें!'
+          : 'Great conditions for parks, cafes, rooftops, or outdoor strolls. Enjoy your evening!',
+        safety: null,
+        metrics: {
+          temp: tempVal,
+          rainProb: popVal,
+          wind: windVal,
+          groundCondition: isHindi ? 'सूखा व सुखद' : 'Dry & Pleasant'
+        },
+        ruleTriggered: 'EVENING_HANGOUT_FAVORABLE',
+        disclaimer: isHindi ? 'MAUSAM शाम के मौसम विश्लेषण पर आधारित।' : 'Based on MAUSAM evening outdoor comfort index.'
+      };
+    }
+
     // SPECIALIZED ROUTING 1: TRAVEL & COMMUTE (Exclude WBGT)
     if (actType === 'travel') {
       const routine = context.routine || [];
